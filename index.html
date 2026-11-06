@@ -571,6 +571,12 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @keyframes dnfx{0%{opacity:0;transform:scale(.5)}30%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.3)}}
 .whisperfx{border-radius:50%;background:radial-gradient(circle, rgba(220,230,255,.0) 30%, rgba(200,215,255,.55) 55%, transparent 72%);animation:whisperfx 1.5s ease-in-out forwards}
 @keyframes whisperfx{0%,100%{opacity:0}30%,70%{opacity:1}}
+.sawline{position:absolute;z-index:7;pointer-events:none;transform-origin:0 50%;margin-top:-3px;
+  background:repeating-linear-gradient(90deg, #ffb46b 0 6px, #7a3a12 6px 9px);box-shadow:0 0 10px rgba(255,138,61,.9);
+  animation:sawline 1s ease-out forwards}
+@keyframes sawline{0%{opacity:0;clip-path:inset(0 100% 0 0)}35%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
+.sawfx{background:repeating-linear-gradient(-45deg, rgba(255,138,61,.0) 0 6px, rgba(255,90,40,.75) 6px 9px);animation:sawfx .6s steps(4) forwards}
+@keyframes sawfx{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
 .sq.bombed::before{content:"\1F4A3";position:absolute;right:4%;top:2%;font-size:calc(var(--sq) * .28);line-height:1;z-index:5;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
 .boomfx{border-radius:50%;background:radial-gradient(circle, #fff 0%, #ffd27a 25%, #ff6a3d 50%, rgba(120,20,20,.6) 68%, transparent 75%);animation:boomfx .8s ease-out forwards}
 @keyframes boomfx{0%{opacity:1;transform:scale(.2)}50%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(2)}}
@@ -1298,6 +1304,19 @@ BOTS.johan = {
     '--muted': '#9ea8b8', '--gold': '#d9e2f0', '--gold-ink': '#0a1220', '--graph-bg': '#10141b' },
   card: { bg: '#10141b', rule: '#263041', text: '#eef2f8', muted: '#9ea8b8', accent: '#d9e2f0', ink: '#0a1220' }
 };
+BOTS.denji = {
+  name: 'Denji', crest: '\u265C', statLabel: 'Captures', quiet: false, style: 'chaos', ability: 'chainsaw', pace: 0.75,
+  tag: 'Hungry and reckless. Once a game, one of his rooks becomes a chainsaw and rips through up to two of your pieces in a straight line.',
+  // Between Malik (0.89, depth 7) and Naoya (0.95, depth 9).
+  chaos: { good: 0.92, greedy: 0.6, depth: 8 },
+  levels: [
+    { elo: 800, skill: 0, depth: 5, time: 400 }
+  ],
+  crestPiece: 'br',
+  palette: { '--ink': '#110a07', '--glow': '#21130c', '--panel': '#1a0f0a', '--rule': '#3b2418', '--text': '#fbefe7',
+    '--muted': '#c0a191', '--gold': '#ff8a3d', '--gold-ink': '#2a1004', '--graph-bg': '#1a0f0a' },
+  card: { bg: '#1a0f0a', rule: '#3b2418', text: '#fbefe7', muted: '#c0a191', accent: '#ff8a3d', ink: '#2a1004' }
+};
 let botId = 'lelouch', nextBotId = 'lelouch';
 // Bot vs bot: which bot and level plays each color, and whether they play at human pace.
 let watchMode = false, watchFast = false;
@@ -1305,7 +1324,7 @@ let sideBot = { w: 'lelouch', b: 'ayanokoji' }, sideLevel = { w: 0, b: 0 };
 let prevBy = { w: null, b: null }, annBy = { w: {}, b: {} };
 const levelIdxBy = { lelouch: 0, ayanokoji: 0 };
 // Special powers can be switched off per bot from its card on the Opponents screen.
-const ABILITY_NAMES = { light: 'Death Note', johan: 'Whisper', kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
+const ABILITY_NAMES = { denji: 'Chainsaw', light: 'Death Note', johan: 'Whisper', kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
 const abilitiesOn = {};
 const abilityOn = () => abilitiesOn[botId] !== false;
 const BOT = () => BOTS[botId];
@@ -3775,6 +3794,46 @@ const LINES_JOHAN = {
 };
 BOTS.light.lines = LINES_LIGHT;
 BOTS.johan.lines = LINES_JOHAN;
+const LINES_DENJI = {
+  greetWhite: ["Alright, I go first. Let's get this over with so I can eat.", "Yo. Let's play. Winner gets bread."],
+  greetBlack: ["You go first. I'm still hungry.", "Your move. Hurry, I want food after this."],
+  restore: ["Oh, we're still playing? Cool."],
+  kingMarch: ["My king's taking a walk. Whatever."],
+  kingActive: ["Moving forward. That's the plan. That's the whole plan."],
+  check: ["Check! Ha!", "Check. Did I do that right?"],
+  capture: ["Got it!", "Mine now.", "Yoink."],
+  blunder: ["Free stuff? Sweet!", "You just gave me that, huh."],
+  strong: ["Whoa, that was smart.", "Huh. You're good."],
+  winning: ["I'm winning? I'm actually winning!"],
+  losing: ["Ugh, this is going bad.", "I'm not done. Not even close."],
+  mate: [n => `Mate in ${n}? Let's go!`],
+  playerCheck: ["Check?! Hey!", "Ow. Okay."],
+  ambient: ["I wonder what's for dinner.", "Chess is kinda hard, huh.", "If I win, I'm getting something good to eat.", "Just gotta keep moving forward."],
+  botWins: ["Checkmate! I won! Food time!", "I actually won. No way."],
+  playerWins: ["Aw man. You got me.", "Checkmate? Ugh. I'm still hungry, too."],
+  draw: ["A draw? Does anyone get dinner?"],
+  resign: ["You're quitting? I win? Nice."],
+  undo: ["Nope, no take-backs.", "Can't undo that one, sorry."],
+  playerFlag: ["Out of time! Ha!"],
+  botFlag: ["Wait, my clock ran out? Not fair."],
+  botPromote: ["Queen! Let's go!"],
+  playerPromote: ["Another queen? Come on."],
+  queenTaken: ["Got your queen! Huge!"],
+  queenLost: ["My queen?! Aw, come on."],
+  queenBlunder: ["...Oops."],
+  playerCastle: ["Hiding the king, huh?"],
+  playerKing: ["Your king's out? Bold."],
+  sacrifice: ["Take it. Or don't. I dunno.", "Free piece? Maybe."],
+  endgame: ["Almost done. Almost food."],
+  longGame: ["This is taking forever. I'm starving."],
+  hint: ["Here, take a hint."],
+  reviewClean: ["No blunders? Nice."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Eh, it happens.`],
+  // Chainsaw: once a game a rook rips through up to two pieces in a line.
+  saw: ["Time to rev it up!", "Chainsaw time!"],
+  sawAfter: [n => n > 1 ? 'Two in one go! Ha!' : 'Got one!', n => n > 1 ? 'Sawed right through!' : 'Ripped through it!']
+};
+BOTS.denji.lines = LINES_DENJI;
 BOTS.yuta.lines = LINES_YUTA;
 const lastPicked = {};
 function pick(cat) {
@@ -4633,6 +4692,7 @@ async function botTurn() {
   if (canShoot()) { shotTurn(myGen); return; }
   if (canRoll()) { rollTurn(myGen); return; }
   if (canWhisper()) { whisperTurn(myGen); return; }
+  if (canSaw()) { sawTurn(myGen); return; }
   thinking = true;
   updateStatus(); renderControls();
   const started = Date.now();
@@ -5569,8 +5629,9 @@ function powerPickSquare(sq) {
 
 /* ---------------- Your copies of the bots' abilities ---------------- */
 // Abilities where you tap the piece it hits.
-const TARGETED = new Set(['b_dnote', 'b_whisper', 'b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
+const TARGETED = new Set(['b_saw', 'b_dnote', 'b_whisper', 'b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
+  b_saw: 'Tap one of your rooks to rev the chainsaw',
   b_dnote: 'Tap a bot piece to write in the Death Note',
   b_whisper: 'Tap the bot piece to whisper to',
   b_bomb: 'Tap a bot piece to turn into a bomb',
@@ -5596,6 +5657,7 @@ function powerTargets(type) {
     const minors = pieces.filter(x => x.type !== 'p');
     return (minors.length ? minors : pieces).map(sq);
   }
+  if (type === 'b_saw') return [...new Set(sawCuts(c).map(x => x.from))];
   if (type === 'b_dnote') return dnoteState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
   if (type === 'b_whisper') return [...new Set(betrayals(c).map(x => x.from))];
   if (type === 'b_bomb') return bombState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
@@ -5656,6 +5718,23 @@ async function castPlayer(type, pick, pick2) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
   const busy = () => { thinking = true; updateStatus(); renderControls(); };
   const done = () => { thinking = false; };
+  if (type === 'b_saw') {
+    const V = { r: 5, b: 3, n: 3, p: 1 };
+    const list = sawCuts(c).filter(x => x.from === pick);
+    if (!list.length) return;
+    const val = s => s.cut.reduce((a, x) => a + V[x.type], 0);
+    const top = Math.max(...list.map(val));
+    const s = rand(list.filter(x => val(x) === top));
+    spendPower(); busy(); Sound.play('chainsaw');
+    await wait(500); if (myGen !== gen) return;
+    sawFx(s.from, s.to, s.cut);
+    await wait(900); if (myGen !== gen) return; done();
+    doSaw(c, s);
+    playerFinish({ from: s.from, to: s.to, piece: 'r', captured: s.cut[0].type, special: 'saw', verb: 'saws through', hits: s.cut.map(x => x.sq + ':k').join(','),
+      san: '\u2694R' + s.from + 'x' + s.cut.map(x => x.sq).join('x') },
+      `Chainsaw! Your rook ripped through ${s.cut.map(x => 'the ' + PIECE_WORD[x.type]).join(' and ')}.`);
+    return;
+  }
   if (type === 'b_dnote') {
     const pc = game.get(pick);
     if (!pc || pc.color !== opp) return;
@@ -6753,6 +6832,90 @@ async function whisperTurn(myGen) {
     san: '❧' + (b.piece === 'p' ? b.from[0] : b.piece.toUpperCase()) + 'x' + b.to }, (pick('whisperAfter') || (() => ''))(PIECE_WORD[b.victim]));
 }
 
+/* ---------------- Denji: Chainsaw ---------------- */
+// Once a game, instead of a move, one of his rooks rips along a rank or file through up to two of
+// the other side's pieces in a row (never a king or queen; his own pieces block it) and lands where
+// the last one was.
+let sawBy = { w: 0, b: 0 };
+function sawCuts(c) {
+  const v = other(c), F = 'abcdefgh', out = [];
+  for (const r of piecesOf(c, pc => pc.type === 'r')) {
+    for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let f = F.indexOf(r.sq[0]) + df, k = +r.sq[1] + dr;
+      const cut = [];
+      while (f >= 0 && f < 8 && k >= 1 && k <= 8 && cut.length < 2) {
+        const s = F[f] + k, pc = game.get(s);
+        if (pc) {
+          if (pc.color === c || pc.type === 'k' || pc.type === 'q') break;
+          cut.push({ sq: s, type: pc.type });
+        }
+        f += df; k += dr;
+      }
+      if (!cut.length) continue;
+      // Leaving its square must not expose his own king.
+      const saved = cut.map(x => game.get(x.sq));
+      game.remove(r.sq); cut.forEach(x => game.remove(x.sq)); game.put({ type: 'r', color: c }, cut[cut.length - 1].sq);
+      const fen = passFen(c);
+      game.remove(cut[cut.length - 1].sq); cut.forEach((x, i) => game.put(saved[i], x.sq)); game.put({ type: 'r', color: c }, r.sq);
+      if (kingAttacked(fen, c)) continue;
+      out.push({ from: r.sq, cut, to: cut[cut.length - 1].sq });
+    }
+  }
+  return out;
+}
+function canSaw() {
+  if (BOT().ability !== 'chainsaw' || !abilityOn() || isOver() || game.in_check()) return false;
+  const c = botColor, n = botMoveCount();
+  if (n < 6 || (sawBy[c] || 0) >= 1) return false;
+  const best = sawCuts(c);
+  if (!best.length) return false;
+  const two = best.some(x => x.cut.length > 1);
+  return n >= 30 || Math.random() < (two ? 0.4 : 0.1);
+}
+function sawFx(from, to, cut) {
+  if (reduceMotion) return;
+  const a = boardEl.querySelector(`[data-sq="${from}"]`), b = boardEl.querySelector(`[data-sq="${to}"]`);
+  if (!a || !b) return;
+  const wr = wrapEl.getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  const x1 = ra.left - wr.left + ra.width / 2, y1 = ra.top - wr.top + ra.height / 2, x2 = rb.left - wr.left + rb.width / 2, y2 = rb.top - wr.top + rb.height / 2;
+  const line = document.createElement('div');
+  line.className = 'sawline';
+  line.style.cssText = `left:${x1}px;top:${y1}px;width:${Math.hypot(x2 - x1, y2 - y1)}px;transform:rotate(${Math.atan2(y2 - y1, x2 - x1)}rad);height:${Math.max(6, ra.width * 0.18)}px`;
+  wrapEl.appendChild(line);
+  cut.forEach((x, i) => setTimeout(() => {
+    squareFx(x.sq, 'sawfx');
+    const pc = boardEl.querySelector(`[data-sq="${x.sq}"] .pc`);
+    if (pc) pc.classList.add('blasted');
+  }, 250 + i * 220));
+  setTimeout(() => line.remove(), 1100);
+}
+function doSaw(c, s) {
+  game.remove(s.from);
+  s.cut.forEach(x => game.remove(x.sq));
+  game.put({ type: 'r', color: c }, s.to);
+}
+async function sawTurn(myGen) {
+  const c = botColor, V = { r: 5, b: 3, n: 3, p: 1 };
+  const list = sawCuts(c);
+  if (!list.length) return;
+  const val = s => s.cut.reduce((a, x) => a + V[x.type], 0);
+  const top = Math.max(...list.map(val));
+  const s = rand(list.filter(x => val(x) === top));
+  sawBy[c] = (sawBy[c] || 0) + 1;
+  thinking = true;
+  updateStatus(); renderControls();
+  say(pick('saw'));
+  Sound.play('chainsaw');
+  await new Promise(r => setTimeout(r, 500));
+  if (myGen !== gen) return;
+  sawFx(s.from, s.to, s.cut);
+  await new Promise(r => setTimeout(r, 900));
+  if (myGen !== gen) return;
+  doSaw(c, s);
+  await finishSpecial(myGen, c, { from: s.from, to: s.to, piece: 'r', captured: s.cut[0].type, special: 'saw', verb: 'saws through',
+    hits: s.cut.map(x => x.sq + ':k').join(','), san: '⚔R' + s.from + 'x' + s.cut.map(x => x.sq).join('x') }, (pick('sawAfter') || (() => ''))(s.cut.length));
+}
+
 /* ---------------- Owen: Pawn Rush ---------------- */
 let rushBy = { w: 0, b: 0 };
 // Steps each pawn forward one square (front pawns first). If an enemy piece is straight ahead it
@@ -6837,6 +7000,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
+  b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
   b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
@@ -6849,7 +7013,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_dnote: 1, b_whisper: 2, b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -6918,7 +7082,7 @@ async function blunderTurn(myGen) {
 /* ---------------- Jotaro's time stop ---------------- */
 let timeStopped = false, tsBy = { w: 0, b: 0 }, tsLast = { w: -99, b: -99 }, tsMax = { w: 3, b: 3 };
 function resetTimeStop() {
-  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; dnBy = { w: 0, b: 0 }; whisperBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
+  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; dnBy = { w: 0, b: 0 }; whisperBy = { w: 0, b: 0 }; sawBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
   gproMax = { w: Math.random() < 0.12 ? 2 : 1, b: Math.random() < 0.12 ? 2 : 1 };
   forceBy = { w: 0, b: 0 }; illBy = { w: 0, b: 0 }; illusion = null; owenTarget = null;
   resetPower();
@@ -7668,6 +7832,7 @@ function buildPGN() {
   const tok = k => (slots[k] === -1 ? '--' : h[slots[k]].asc
     ? (h[slots[k]].special === 'rush' ? `-- {${sideName(h[slots[k]].color)} pushes ${h[slots[k]].count || 'several'} pawns forward at once${h[slots[k]].took ? ', taking ' + h[slots[k]].took : ''}}`
       : h[slots[k]].special === 'swap' ? `-- {${sideName(h[slots[k]].color)} swaps the pieces on ${h[slots[k]].from} and ${h[slots[k]].to}}`
+      : h[slots[k]].special === 'saw' ? `-- {${sideName(h[slots[k]].color)} chainsaws from ${h[slots[k]].from} through ${(h[slots[k]].hits || '').split(',').map(x => x.split(':')[0]).join(' and ')}}`
       : h[slots[k]].special === 'whisper' ? `-- {${sideName(h[slots[k]].color)} whispers: the piece on ${h[slots[k]].from} takes its own ${PIECE_WORD[h[slots[k]].captured]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'roll' ? `-- {${sideName(h[slots[k]].color)} rolls the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'd4c' ? `-- {${sideName(h[slots[k]].color)} copies the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].from} onto ${h[slots[k]].to}}`
@@ -8298,6 +8463,11 @@ const Sound = {
         this.sweep(t, 9000, 2500, 0.4, 0.45, 0.7);
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
+      }
+      else if (kind === 'chainsaw') {
+        for (let i = 0; i < 18; i++) this.tone(t + i * 0.05, 90 + (i % 3) * 18 + i * 4, 0.05, 0.06, 'sawtooth');
+        this.crunch(t, 0.9, 0.12, 3);
+        this.sweep(t + 0.4, 600, 2400, 0.8, 0.15, 1.2);
       }
       else if (kind === 'dnote') { for (let i = 0; i < 6; i++) this.knock(t + i * 0.09, 3200 + (i % 2) * 600, 0.18, 0.03); this.pad(t, 110, 0.06, 1.4); }
       else if (kind === 'dkill') { this.tone(t, 98, 0.12, 0.9, 'sine'); this.glide(t, 400, 60, 0.9, 0.3); this.sweep(t, 2000, 200, 0.6, 0.15, 1); }
@@ -9140,7 +9310,7 @@ function restore(data) {
     }
   } else return false;
   resetTimeStop();
-  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.dnote) dnBy[m.color] = (dnBy[m.color] || 0) + 1; if (m.special === 'whisper') whisperBy[m.color] = (whisperBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
+  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.dnote) dnBy[m.color] = (dnBy[m.color] || 0) + 1; if (m.special === 'whisper') whisperBy[m.color] = (whisperBy[m.color] || 0) + 1; if (m.special === 'saw') sawBy[m.color] = (sawBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
   playerColor = s.playerColor === 'b' ? 'b' : 'w';
   botColor = other(playerColor);
   sideChoice = ['w', 'b', 'r'].includes(s.sideChoice) ? s.sideChoice : playerColor;
