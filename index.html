@@ -576,6 +576,15 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .board.nolast .sq.last::before{background:none}
 .pow-select{width:100%;max-width:420px;background:var(--scr-bg);color:var(--scr-text);border:1px solid var(--scr-rule);border-radius:6px;padding:10px;font-family:var(--f-body);font-size:1rem}
 .pow-desc{margin:6px 0 0;font-size:.86rem;color:var(--scr-muted);min-height:1.3em}
+.rollodds{border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--text);font-size:.85rem}
+.rollodds summary{cursor:pointer;padding:8px 12px;color:var(--gold);font-weight:600;list-style-position:inside}
+.rollodds .ro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:2px 12px 10px}
+.rollodds h4{margin:0 0 4px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rollodds ul{margin:0;padding:0;list-style:none;display:grid;gap:2px}
+.rollodds li{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.rollodds li.up{color:#7fe08a}.rollodds li.dn{color:#ff8a8a}
+.rollodds li b{font-weight:700}
+.rollodds .ro-note{margin:0;padding:0 12px 10px;color:var(--muted);font-size:.78rem}
 .powerbtn{background:var(--panel);color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:10px 12px;
   font-family:var(--f-mono);font-size:.82rem;letter-spacing:.03em;cursor:pointer;min-height:44px}
 .powerbtn.on{background:var(--gold);color:var(--gold-ink)}
@@ -879,6 +888,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
       <button type="button" id="resign">Resign</button>
     </div>
     <button type="button" class="powerbtn" id="powerBtn" hidden></button>
+    <details class="rollodds" id="rollOdds" hidden><summary>Gamble odds</summary><div id="rollOddsBody"></div></details>
     <div class="newgame">
       <details class="setup" id="setup">
         <summary><span>Next game</span><span class="setup-sum" id="setupSum"></span></summary>
@@ -5213,9 +5223,35 @@ function statusFlash(msg) {
   statusText.textContent = msg;
   statusFlashTimer = setTimeout(updateStatus, 3200);
 }
+// The odds for your Idle Gamble power, shown under the power button.
+function renderRollOdds() {
+  const box = document.getElementById('rollOdds');
+  if (!box) return;
+  const show = !!power && power.type === 'b_roll' && !watchMode;
+  box.hidden = !show;
+  if (!show) return;
+  const body = document.getElementById('rollOddsBody');
+  if (!body.dataset.built) {
+    const NAMES = {
+      p: { none: ['Pawn is lost', 'dn'], minor: ['Bishop or knight', 'up'], r: ['Rook', 'up'], q: ['Queen (777)', 'up'] },
+      n: { down: ['Drops to a pawn', 'dn'], none: ['Nothing', ''], r: ['Rook', 'up'], q: ['Queen (777)', 'up'] },
+      r: { down: ['Bishop or knight', 'dn'], pawn: ['Drops to a pawn', 'dn'], none: ['Nothing', ''], q: ['Queen (777)', 'up'] },
+      q: { none: ['Nothing', ''], extra: ['Extra bishop or knight', 'up'], lose: ['Queen is lost', 'dn'] }
+    };
+    const col = (title, key) => `<div><h4>${title}</h4><ul>` + ROLL_ODDS[key].map(([pr, r]) => {
+      const [label, cls] = NAMES[key][r];
+      return `<li class="${cls}"><span>${label}</span><b>${Math.round(pr * 100)}%</b></li>`;
+    }).join('') + '</ul></div>';
+    body.innerHTML = `<div class="ro-grid">${col('Pawn', 'p')}${col('Bishop or knight', 'n')}${col('Rook', 'r')}${col('Queen', 'q')}</div>` +
+      `<p class="ro-note">A drop to a pawn on the far back rank counts as nothing. 5 moves between rolls.</p>`;
+    body.dataset.built = '1';
+  }
+  if (powerPick === 'b_roll' && !box.open) box.open = true;
+}
 function renderPower() {
   const btn = document.getElementById('powerBtn');
   if (!btn) return;
+  renderRollOdds();
   btn.hidden = !power;
   if (!power) return;
   const P = POWERS[power.type];
