@@ -1270,7 +1270,7 @@ BOTS.hakari = {
 };
 BOTS.kira = {
   name: 'Kira', crest: '\u265A', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'bomb',
-  tag: 'He only wants a quiet life. Once a game, Killer Queen secretly turns one of your pieces into a bomb. Move it and it explodes, taking your pieces next to it.',
+  tag: 'He only wants a quiet life. Twice a game, Killer Queen secretly turns one of your pieces into a bomb. A few moves later, at a random moment, it explodes, taking your pieces next to it.',
   // Stockfish skill 4 is about 1790; the bomb brings him to about 1900.
   levels: [
     { elo: 1900, skill: 4, depth: 12, time: 2000 }
@@ -3711,7 +3711,7 @@ const LINES_KIRA = {
   reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Messy.`],
   // Killer Queen: once a game he secretly turns one of your pieces into a bomb.
   bomb: ["Killer Queen has already touched something of yours.", "One of your pieces is a little different now. Which one, I wonder."],
-  boom: ["Ah. You touched it.", "Click. That's the end of that."]
+  boom: ["Click. Right on time.", "Killer Queen. I pressed the switch."]
 };
 BOTS.kira.lines = LINES_KIRA;
 const LINES_LIGHT = {
@@ -4740,10 +4740,11 @@ async function botTurn() {
     const pm = game.moves({ verbose: true }).find(x => uciOf(x) === res.reply);
     if (pm) { joPredict = { uci: res.reply }; say((pick('predict') || (() => ''))(pm.san)); }
   }
-  if (checkBomb(mv)) { render(); renderMoves(); renderStats(); save(); }
+  const boomed = checkBomb(mv);
+  if (boomed) { render(); renderMoves(); renderStats(); save(); }
   if (checkDNote(mv)) { render(); renderMoves(); renderStats(); save(); }
   if (BOT().ability === 'dnote' && canWriteNote(mv)) writeNote(mv);
-  if (BOT().ability === 'bomb' && canPlantBomb(mv)) plantBomb(mv);
+  if (!boomed && BOT().ability === 'bomb' && canPlantBomb(mv)) plantBomb(mv);
   if (timeStopped) endTimeStop();
   else if (canTimeStop(mv)) { startTimeStop(myGen); return; }
   if (projecting) { projecting = false; projTrailFx(mv); Sound.play('projtrail'); say(pick('projectAfter')); }
@@ -5765,7 +5766,7 @@ async function castPlayer(type, pick, pick2) {
     spendPower(); busy(); Sound.play('kqclick'); squareFx(pick, 'swapfx');
     await wait(700); if (myGen !== gen) return; done();
     playerFinish({ from: pick, to: pick, piece: pc.type, special: 'bombset', verb: 'plants a bomb on', bomb: pick, san: '\u2735' + L(pc.type) + pick },
-      `Killer Queen has touched the bot's ${PIECE_WORD[pc.type]} on ${pick}. If it moves, it explodes.`);
+      `Killer Queen has touched the bot's ${PIECE_WORD[pc.type]} on ${pick}. It'll go off within your next 6 moves.`);
     return;
   }
   if (type === 'b_roll') {
@@ -6602,12 +6603,13 @@ async function rollTurn(myGen) {
 let bombBy = { w: 0, b: 0 };
 // The live bomb before log entry `upto`: { sq, v } (v = the side it belongs to), or null.
 function bombState(upto = moveLog.length) {
-  let t = null, v = null;
+  let t = null, v = null, by = null, cnt = 0;
   for (let i = 0; i < upto; i++) {
     const m = moveLog[i];
-    if (m.bomb) { t = m.bomb; v = other(m.color); continue; }
+    if (m.bomb) { t = m.bomb; v = other(m.color); by = m.color; cnt = 0; continue; }
     if (!t) continue;
     if (m.boom) { t = null; continue; }
+    if (m.color === by) cnt++;
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
       else if (['d4c', 'punch', 'gpromote', 'dnoteset'].includes(m.special)) { /* nothing moved */ }
@@ -6616,22 +6618,22 @@ function bombState(upto = moveLog.length) {
     }
     if (m.dkill === t) { t = null; continue; }
     if (m.color === v) {
-      if (m.from === t) t = null;   // it moved (and went off)
+      if (m.from === t) t = m.to;   // the bomb rides along with the piece
       const rank = v === 'w' ? '1' : '8';
       if (m.flags && m.flags.includes('k') && t === 'h' + rank) t = 'f' + rank;
       if (m.flags && m.flags.includes('q') && t === 'a' + rank) t = 'd' + rank;
     } else if (m.to === t) t = null;  // captured
   }
-  return t ? { sq: t, v } : null;
+  return t ? { sq: t, v, by, cnt } : null;
 }
 function canPlantBomb(mv) {
   if (BOT().ability !== 'bomb' || !abilityOn() || isOver() || bombState()) return false;
   const c = mv.color, n = botMoveCount();
-  if (n < 5 || (bombBy[c] || 0) >= 1) return false;
+  if (n < 5 || (bombBy[c] || 0) >= 2) return false;
   if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
   return n >= 26 || Math.random() < 0.2;
 }
-// The bombed piece is chosen completely at random (any rook, bishop, knight or pawn).
+// He picks a piece with lots of its friends around it, for a bigger blast.
 function plantBomb(mv) {
   const c = mv.color, v = other(c), F = 'abcdefgh';
   const list = piecesOf(v, pc => 'pnbr'.includes(pc.type)).map(x => {
@@ -6646,7 +6648,7 @@ function plantBomb(mv) {
     }
     return Object.assign(x, { near });
   }).sort((a, b) => b.near - a.near);
-  const t = rand(list);
+  const t = rand(list.slice(0, 3));
   mv.bomb = t.sq;
   bombBy[c] = (bombBy[c] || 0) + 1;
   save();
@@ -6655,11 +6657,14 @@ function plantBomb(mv) {
   // Only show where it is when you're watching two bots (it's never your own piece then).
   if (watchMode) render();
 }
-// If this move moved the bomb, blow it up. Call right after the move is in the log.
+// After the planter's own move, the bomb may go off: 1 in 4 each move, and always by the 6th.
+// Call right after the move is in the log.
 function checkBomb(mv) {
-  const b = bombState(moveLog.length - 1);
-  if (!b || mv.color !== b.v || mv.from !== b.sq) return false;
-  const v = b.v, at = mv.to, F = 'abcdefgh', f0 = F.indexOf(at[0]), r0 = +at[1];
+  const b = bombState();
+  if (!b || mv.color !== b.by || b.cnt < 1) return false;
+  if (b.cnt < 6 && Math.random() >= 0.25) return false;
+  if (!game.get(b.sq) || game.get(b.sq).color !== b.v) return false;
+  const v = b.v, at = b.sq, F = 'abcdefgh', f0 = F.indexOf(at[0]), r0 = +at[1];
   const cands = [at];
   for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
     if (!df && !dr) continue;
@@ -6685,7 +6690,8 @@ function checkBomb(mv) {
   last.fen = f; last.reset = true; last.boom = gone.join(',') || at;
   bombFx(at, gone);
   Sound.play('boom');
-  statusFlash(`Killer Queen! The ${mv.color === playerColor && !watchMode ? 'piece you moved was a bomb' : 'bomb went off'}: ${gone.length} piece${gone.length === 1 ? '' : 's'} destroyed.`);
+  if (b.by === playerColor && !watchMode) statusFlash(`Killer Queen! Your bomb went off: ${gone.length} bot piece${gone.length === 1 ? '' : 's'} destroyed.`);
+  else { say(pick('boom')); statusFlash(`Killer Queen! A bomb went off on ${at}: ${gone.length} piece${gone.length === 1 ? '' : 's'} destroyed.`); }
   return true;
 }
 function bombFx(at, gone) {
@@ -7003,7 +7009,7 @@ const POWERS = {
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
-  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
+  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. It goes off at a random time within your next 6 moves, taking the bot\u2019s pieces next to it.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
@@ -7013,7 +7019,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 1, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
