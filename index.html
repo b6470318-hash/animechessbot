@@ -1270,8 +1270,8 @@ BOTS.hakari = {
 };
 BOTS.kira = {
   name: 'Kira', crest: '\u265A', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'bomb',
-  tag: 'He only wants a quiet life. Twice a game, Killer Queen secretly turns one of your pieces into a bomb. Move it and it explodes, taking your pieces next to it.',
-  // Stockfish skill 4 is about 1790; the bombs bring him to about 1900.
+  tag: 'He only wants a quiet life. Once a game, Killer Queen secretly turns one of your pieces into a bomb. Move it and it explodes, taking your pieces next to it.',
+  // Stockfish skill 4 is about 1790; the bomb brings him to about 1900.
   levels: [
     { elo: 1900, skill: 4, depth: 12, time: 2000 }
   ],
@@ -3709,7 +3709,7 @@ const LINES_KIRA = {
   hint: ["A small hint. Don't tell anyone."],
   reviewClean: ["No blunders. Respectable."],
   reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Messy.`],
-  // Killer Queen: twice a game he secretly turns one of your pieces into a bomb.
+  // Killer Queen: once a game he secretly turns one of your pieces into a bomb.
   bomb: ["Killer Queen has already touched something of yours.", "One of your pieces is a little different now. Which one, I wonder."],
   boom: ["Ah. You touched it.", "Click. That's the end of that."]
 };
@@ -6594,7 +6594,7 @@ async function rollTurn(myGen) {
 }
 
 /* ---------------- Kira: Killer Queen ---------------- */
-// Twice a game, right after one of his moves (it doesn't cost him a turn), he secretly turns one of
+// Once a game, right after one of his moves (it doesn't cost him a turn), he secretly turns one of
 // the other side's pieces (not the king or queen) into a bomb. Nobody is told which. When that piece
 // moves, it explodes: it and that side's pieces next to where it landed are destroyed (never a king
 // or queen). One bomb at a time. The bomb is recorded on the planting move as `bomb`, and the
@@ -6627,7 +6627,7 @@ function bombState(upto = moveLog.length) {
 function canPlantBomb(mv) {
   if (BOT().ability !== 'bomb' || !abilityOn() || isOver() || bombState()) return false;
   const c = mv.color, n = botMoveCount();
-  if (n < 5 || (bombBy[c] || 0) >= 2) return false;
+  if (n < 5 || (bombBy[c] || 0) >= 1) return false;
   if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
   return n >= 26 || Math.random() < 0.2;
 }
@@ -7003,7 +7003,7 @@ const POWERS = {
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
-  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
+  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
@@ -7013,7 +7013,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 1, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
