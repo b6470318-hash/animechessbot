@@ -1291,7 +1291,7 @@ BOTS.hakari = {
 };
 BOTS.kira = {
   name: 'Kira', crest: '\u265A', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'bomb',
-  tag: 'He only wants a quiet life. Three times a game, Killer Queen secretly turns one of your pieces into a bomb. A few moves later, at a random moment, it explodes: it takes one knight, bishop or rook if it reaches one, otherwise the pawns around it. Never in his first 10 moves, and 5 moves between a blast and his next bomb.',
+  tag: 'He only wants a quiet life. Three times a game, Killer Queen secretly turns one of your pawns into a bomb. A few moves later, at a random moment, it explodes: the pawn goes, plus one knight, bishop or rook next to it if there is one, otherwise the pawns around it. Never in his first 10 moves, and 5 moves between a blast and his next bomb.',
   // Stockfish skill 4 is about 1790; the bomb brings him to about 1900.
   levels: [
     { elo: 1900, skill: 4, depth: 12, time: 2000 }
@@ -5657,7 +5657,7 @@ const PICK_TEXT = {
   b_saw: 'Tap one of your rooks to rev the chainsaw',
   b_dnote: 'Tap a bot piece to write in the Death Note',
   b_whisper: 'Tap the bot piece to whisper to',
-  b_bomb: 'Tap a bot piece to turn into a bomb',
+  b_bomb: 'Tap a bot pawn to turn into a bomb',
   b_roll: 'Tap one of your pieces to roll (not your king)',
   b_pistols: 'Tap a bot piece your pieces can see to shoot',
   b_d4c: 'Tap a piece to copy (not a queen or a king)',
@@ -5683,7 +5683,7 @@ function powerTargets(type) {
   if (type === 'b_saw') return [...new Set(sawCuts(c).map(x => x.from))];
   if (type === 'b_dnote') return dnoteState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
   if (type === 'b_whisper') return [...new Set(betrayals(c).map(x => x.from))];
-  if (type === 'b_bomb') return bombState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
+  if (type === 'b_bomb') return bombState() ? [] : piecesOf(opp, pc => pc.type === 'p').map(x => x.sq);
   if (type === 'b_roll') return rollable(c).map(x => x.sq);
   if (type === 'b_pistols') return pistolShots(c).map(x => x.sq);
   if (type === 'b_d4c') return [...new Set(d4cOptions(c).filter(o => d4cFen(c, o)).map(o => o.from))];
@@ -6659,13 +6659,13 @@ function canPlantBomb(mv) {
   if (BOT().ability !== 'bomb' || !abilityOn() || isOver() || bombState()) return false;
   const c = mv.color, n = botMoveCount();
   if (n < 10 || (bombBy[c] || 0) >= 3 || bombCooldown(c) > 0) return false;   // never in his first 10 moves
-  if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
+  if (!piecesOf(other(c), pc => pc.type === 'p').length) return false;
   return n >= 26 || Math.random() < 0.2;
 }
 // He picks a piece with lots of its friends around it, for a bigger blast.
 function plantBomb(mv) {
   const c = mv.color, v = other(c), F = 'abcdefgh';
-  const list = piecesOf(v, pc => 'pnbr'.includes(pc.type)).map(x => {
+  const list = piecesOf(v, pc => pc.type === 'p').map(x => {   // bombs only go on pawns
     const f0 = F.indexOf(x.sq[0]), r0 = +x.sq[1];
     let near = 0;
     for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
@@ -6719,8 +6719,9 @@ function checkBomb(mv) {
   const bigs = cands.filter(sq => { const pc = game.get(sq); return pc && 'nbr'.includes(pc.type); })
     .sort((x, y) => (y === at) - (x === at) || V[game.get(y).type] - V[game.get(x).type]);
   let tookBig = false;
-  for (const sq of bigs) if (tryRemove(sq)) { tookBig = true; break; }
-  if (!tookBig) for (const sq of cands) { const pc = game.get(sq); if (pc && pc.type === 'p') tryRemove(sq); }
+  tryRemove(at);   // the bombed pawn itself always goes
+  for (const sq of bigs) if (sq !== at && tryRemove(sq)) { tookBig = true; break; }
+  if (!tookBig) for (const sq of cands) { const pc = game.get(sq); if (sq !== at && pc && pc.type === 'p') tryRemove(sq); }
   const parts = game.fen().split(' ');
   parts[2] = fixCastling(parts[2]); parts[3] = '-';
   const f = parts.join(' ');
@@ -7048,7 +7049,7 @@ const POWERS = {
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
-  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: '3 times a game: tap a bot piece (not the king or queen) to turn it into a bomb. It goes off at a random time within your next 6 moves. The blast takes one knight, bishop or rook if it reaches one, otherwise the pawns. Not in your first 10 moves, and 5 moves between a blast and the next bomb.' },
+  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: '3 times a game: tap a bot pawn to turn it into a bomb. It goes off at a random time within your next 6 moves. The pawn goes, plus one knight, bishop or rook next to it if there is one, otherwise the pawns around it. Not in your first 10 moves, and 5 moves between a blast and the next bomb.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
