@@ -1270,7 +1270,7 @@ BOTS.hakari = {
 };
 BOTS.kira = {
   name: 'Kira', crest: '\u265A', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'bomb',
-  tag: 'He only wants a quiet life. Twice a game, Killer Queen secretly turns one of your pieces into a bomb. A few moves later, at a random moment, it explodes, taking your pieces next to it.',
+  tag: 'He only wants a quiet life. Twice a game, Killer Queen secretly turns one of your pieces into a bomb. A few moves later, at a random moment, it explodes, taking your pieces next to it (at most one knight, bishop or rook per blast). Never in his first 10 moves.',
   // Stockfish skill 4 is about 1790; the bomb brings him to about 1900.
   levels: [
     { elo: 1900, skill: 4, depth: 12, time: 2000 }
@@ -6629,7 +6629,7 @@ function bombState(upto = moveLog.length) {
 function canPlantBomb(mv) {
   if (BOT().ability !== 'bomb' || !abilityOn() || isOver() || bombState()) return false;
   const c = mv.color, n = botMoveCount();
-  if (n < 5 || (bombBy[c] || 0) >= 2) return false;
+  if (n < 10 || (bombBy[c] || 0) >= 2) return false;   // never in his first 10 moves
   if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
   return n >= 26 || Math.random() < 0.2;
 }
@@ -6674,12 +6674,16 @@ function checkBomb(mv) {
     if (pc && pc.color === v && pc.type !== 'k' && pc.type !== 'q') cands.push(F[f] + r);
   }
   const gone = [];
+  // At most one piece worth 3+ (knight, bishop, rook) per blast; any number of pawns.
+  let big = 0;
   for (const sq of cands) {
     const saved = game.get(sq);
     if (!saved || saved.type === 'k') continue;
+    if (saved.type !== 'p' && big >= 1) continue;
     game.remove(sq);
     // Never leave that side's king open to capture.
     if (kingAttacked(game.fen(), v)) { game.put(saved, sq); continue; }
+    if (saved.type !== 'p') big++;
     gone.push(sq);
   }
   const parts = game.fen().split(' ');
@@ -7009,7 +7013,7 @@ const POWERS = {
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
-  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. It goes off at a random time within your next 6 moves, taking the bot\u2019s pieces next to it.' },
+  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. It goes off at a random time within your next 6 moves, taking the bot\u2019s pieces next to it (at most one knight, bishop or rook per blast). Not in your first 10 moves.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
@@ -7710,6 +7714,7 @@ $('powerBtn').onclick = () => {
   if (t === 'shield' || t === 'swap' || t === 'b_gpro') { powerPick = t; swapFirst = null; selected = null; render(); renderControls(); return; }
   if (game.in_check() && t !== 'b_illusion') { statusFlash('You\u2019re in check. Deal with that first.'); return; }
   if (TARGETED.has(t)) {
+    if (t === 'b_bomb' && moveLog.filter(m => m.color === playerColor).length < 10) { statusFlash('Killer Queen can\u2019t be used in your first 10 moves.'); return; }
     if (t === 'b_roll' && rollCooldown(playerColor) > 0) { const k = rollCooldown(playerColor); statusFlash(`The slot machine is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}.`); return; }
     if (!powerTargets(t).length) {
       statusFlash(t === 'b_aura' || t === 'b_purple' || t === 'b_shrine' ? 'None of the bot\u2019s pieces that can be hit have moved yet.'
