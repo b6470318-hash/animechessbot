@@ -6631,7 +6631,7 @@ function canPlantBomb(mv) {
   if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
   return n >= 26 || Math.random() < 0.2;
 }
-// He picks a piece with lots of its friends around it, for a bigger blast.
+// The bombed piece is chosen completely at random (any rook, bishop, knight or pawn).
 function plantBomb(mv) {
   const c = mv.color, v = other(c), F = 'abcdefgh';
   const list = piecesOf(v, pc => 'pnbr'.includes(pc.type)).map(x => {
@@ -6646,7 +6646,7 @@ function plantBomb(mv) {
     }
     return Object.assign(x, { near });
   }).sort((a, b) => b.near - a.near);
-  const t = rand(list.slice(0, 3));
+  const t = rand(list);
   mv.bomb = t.sq;
   bombBy[c] = (bombBy[c] || 0) + 1;
   save();
