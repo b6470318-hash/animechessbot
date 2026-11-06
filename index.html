@@ -603,6 +603,23 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .rollodds li.up{color:#7fe08a}.rollodds li.dn{color:#ff8a8a}
 .rollodds li b{font-weight:700}
 .rollodds .ro-note{margin:0;padding:0 12px 10px;color:var(--muted);font-size:.78rem}
+.name-row{display:flex;align-items:center;gap:10px}
+.powrow{display:flex;gap:6px;align-items:stretch}
+.powrow .powerbtn{flex:1;min-width:0}
+.qbtn{flex:none;width:28px;height:28px;align-self:center;border-radius:50%;border:1px solid currentColor;background:transparent;color:var(--gold);
+  font:700 .9rem/1 Georgia,serif;cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.qbtn:hover{background:rgba(255,255,255,.06)}
+.qbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.card .qbtn{width:24px;height:24px;font-size:.8rem;color:var(--c-accent)}
+.helppop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(0,0,0,.45);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.helppop-card{width:min(100%,420px);background:var(--scr-bg,#111);color:var(--scr-text,#eee);border:1px solid var(--scr-rule,#333);border-radius:12px;
+  padding:18px 18px 12px;display:grid;gap:8px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.helppop-card h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.3rem;letter-spacing:.04em}
+.helppop-kicker{margin:0;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+#helpBody p{margin:0;line-height:1.5}
+#helpBody ul{margin:0;padding-left:1.2em;display:grid;gap:4px;line-height:1.45}
+.helppop-card .linkbtn{justify-self:end}
 .powerbtn{background:var(--panel);color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:10px 12px;
   font-family:var(--f-mono);font-size:.82rem;letter-spacing:.03em;cursor:pointer;min-height:44px}
 .powerbtn.on{background:var(--gold);color:var(--gold-ink)}
@@ -774,6 +791,10 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
+<div class="helppop" id="helpPop" role="dialog" aria-modal="false" aria-labelledby="helpTitle" hidden>
+  <div class="helppop-card"><p class="helppop-kicker" id="helpKicker"></p><h3 id="helpTitle"></h3><div id="helpBody"></div>
+  <button type="button" class="linkbtn" id="helpClose">Got it</button></div>
+</div>
 <div class="screen splash" id="splash" role="status" aria-live="polite">
   <div class="splash-inner">
     <div class="march" aria-hidden="true">
@@ -866,7 +887,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
       <span class="head-links"><button type="button" class="linkbtn" id="menuBtn">Opponents</button><button type="button" class="linkbtn" id="soundBtn" aria-pressed="true">Sound on</button></span>
     </div>
     <p class="engine-why" id="engineWhy" hidden><span id="engineWhyText"></span> <button type="button" class="linkbtn" id="engineRetry">Try again</button></p>
-    <h1 id="botName">Lelouch</h1>
+    <div class="name-row"><h1 id="botName">Lelouch</h1><button type="button" class="qbtn" id="botHelp" aria-label="How this bot's ability works">?</button></div>
     <p class="tag" id="botTag">A strategist at the board. His king leads the army, starting on move two.</p>
   </header>
 
@@ -905,7 +926,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
       <button type="button" id="flip">Flip</button>
       <button type="button" id="resign">Resign</button>
     </div>
-    <button type="button" class="powerbtn" id="powerBtn" hidden></button>
+    <div class="powrow"><button type="button" class="powerbtn" id="powerBtn" hidden></button><button type="button" class="qbtn" id="powHelp" hidden aria-label="What your power does">?</button></div>
     <details class="rollodds" id="rollOdds" hidden><summary>Gamble odds</summary><div id="rollOddsBody"></div></details>
     <div class="newgame">
       <details class="setup" id="setup">
@@ -5487,6 +5508,7 @@ function renderPower() {
   if (!btn) return;
   renderRollOdds();
   btn.hidden = !power;
+  const ph = document.getElementById('powHelp'); if (ph) ph.hidden = !power;
   if (!power) return;
   const P = POWERS[power.type];
   btn.classList.toggle('on', !!(power.armed || powerPick));
@@ -7550,6 +7572,50 @@ $('engineRetry').onclick = () => {
 };
 $('promoCancel').onclick = () => { promoEl.hidden = true; selected = null; render(); };
 
+/* ---------------- Ability guides ("?" buttons) ---------------- */
+// The guide for a bot is its card description (which spells out the ability); for your power it's
+// the power's description, plus the odds table for Idle Gamble.
+function showHelp(kicker, title, html) {
+  $('helpKicker').textContent = kicker;
+  $('helpTitle').textContent = title;
+  $('helpBody').innerHTML = html;
+  $('helpPop').hidden = false;
+  $('helpClose').focus();
+}
+function botHelpHTML(id) {
+  const B = BOTS[id];
+  const on = abilitiesOn[id] !== false;
+  return `<p>${B.tag}</p>` + (ABILITY_NAMES[id] ? `<p><b>${ABILITY_NAMES[id]}</b> is ${on ? 'on' : 'off'} for this bot. You can switch it on the bot's card in the Opponents menu.</p>` : '');
+}
+function showBotHelp(id) {
+  showHelp(`${BOTS[id].name} · ${BOTS[id].levels[levelIdxBy[id] || 0].elo}`, ABILITY_NAMES[id] || BOTS[id].name, botHelpHTML(id));
+}
+$('helpClose').onclick = () => { $('helpPop').hidden = true; };
+$('helpPop').addEventListener('click', e => { if (e.target.id === 'helpPop') $('helpPop').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('helpPop').hidden) $('helpPop').hidden = true; });
+// Card "?" buttons: open the guide without starting a game or toggling anything.
+document.addEventListener('click', e => {
+  const q = e.target.closest('[data-help]');
+  if (!q) return;
+  e.preventDefault(); e.stopPropagation();
+  showBotHelp(q.dataset.help);
+}, true);
+$('botHelp').onclick = () => {
+  if (watchMode) {
+    const a = sideBot.w, b = sideBot.b;
+    showHelp('Bot vs bot', 'Their abilities',
+      `<p><b>${BOTS[a].name}:</b> ${BOTS[a].tag}</p>` + (b !== a ? `<p><b>${BOTS[b].name}:</b> ${BOTS[b].tag}</p>` : ''));
+  } else showBotHelp(botId);
+};
+$('powHelp').onclick = () => {
+  if (!power) return;
+  const P = POWERS[power.type];
+  let html = `<p>${P.desc}</p>`;
+  if (power.type === 'b_roll') { renderRollOdds(); html += document.getElementById('rollOddsBody').innerHTML; }
+  html += power.left > 0 && power.left < 100 ? `<p>Uses left this game: <b>${power.left}</b>.</p>` : '';
+  showHelp('Your power', P.name, html);
+};
+
 /* ---------------- Loading screen ---------------- */
 const splashEl = $('splash'), splashStatus = $('splashStatus'), splashBar = $('splashBar'), splashTip = $('splashTip');
 const SPLASH_TIPS = [
@@ -7606,7 +7672,7 @@ function renderMenu() {
       `<div class="card-crest" aria-hidden="true"><svg viewBox="0 0 45 45">${PIECE_SVG[B.crestPiece || 'wk']}</svg></div>` +
       `<h3 class="card-name">${B.name}</h3>` +
       `<div class="card-lvl"><span class="card-lvl-label">Strength</span><div class="lvl" role="group" aria-label="${B.name} strength">${pills}</div></div>` +
-      (ABILITY_NAMES[id] ? `<div class="card-lvl"><span class="card-lvl-label">${ABILITY_NAMES[id]}</span>` +
+      (ABILITY_NAMES[id] ? `<div class="card-lvl"><span class="card-lvl-label">${ABILITY_NAMES[id]} <button type="button" class="qbtn" data-help="${id}" aria-label="How ${ABILITY_NAMES[id]} works">?</button></span>` +
         `<button type="button" class="pill ab" data-ab="${id}" aria-pressed="${abilitiesOn[id] !== false}">${abilitiesOn[id] !== false ? 'On' : 'Off'}</button></div>` : '') +
       `<button type="button" class="play" data-play="${id}">Play ${B.name}</button></article>`;
   }).join('');
