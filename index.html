@@ -603,6 +603,8 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .rollodds li.up{color:#7fe08a}.rollodds li.dn{color:#ff8a8a}
 .rollodds li b{font-weight:700}
 .rollodds .ro-note{margin:0;padding:0 12px 10px;color:var(--muted);font-size:.78rem}
+.pow-label{display:flex;align-items:center;gap:8px}
+.pow-label .qbtn{width:22px;height:22px;font-size:.78rem;color:var(--scr-text)}
 .name-row{display:flex;align-items:center;gap:10px}
 .powrow{display:flex;gap:6px;align-items:stretch}
 .powrow .powerbtn{flex:1;min-width:0}
@@ -614,7 +616,11 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .helppop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(0,0,0,.45);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .helppop-card{width:min(100%,420px);background:var(--scr-bg,#111);color:var(--scr-text,#eee);border:1px solid var(--scr-rule,#333);border-radius:12px;
-  padding:18px 18px 12px;display:grid;gap:8px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+  padding:18px 18px 12px;display:grid;gap:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);max-height:calc(100dvh - 32px);overflow-y:auto}
+.rollodds.inpop{border:0;background:none;color:inherit}
+.helppop-card .rollodds ul{padding:0;list-style:none}
+.helppop-card .ro-grid{padding:0}
+.helppop-card .ro-note{padding:0}
 .helppop-card h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.3rem;letter-spacing:.04em}
 .helppop-kicker{margin:0;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
 #helpBody p{margin:0;line-height:1.5}
@@ -838,7 +844,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
         </div>
       </div>
       <div class="menu-opt power-opt">
-        <p class="ctrl-label" id="mPowLabel">Your power</p>
+        <p class="ctrl-label pow-label"><span id="mPowLabel">Your power</span> <button type="button" class="qbtn" id="powMenuHelp" aria-label="How the selected power works">?</button></p>
         <select id="powSelect" class="pow-select" aria-labelledby="mPowLabel"></select>
         <p class="pow-desc" id="powDesc"></p>
       </div>
@@ -7608,13 +7614,30 @@ $('botHelp').onclick = () => {
       `<p><b>${BOTS[a].name}:</b> ${BOTS[a].tag}</p>` + (b !== a ? `<p><b>${BOTS[b].name}:</b> ${BOTS[b].tag}</p>` : ''));
   } else showBotHelp(botId);
 };
+function powerHelpHTML(key) {
+  const P = POWERS[key];
+  let html = `<p>${P.desc}</p>`;
+  if (key === 'b_roll') {
+    // Build the odds table even when no game power is active yet.
+    const saved = power;
+    power = power && power.type === 'b_roll' ? power : { type: 'b_roll', left: 1 };
+    renderRollOdds();
+    power = saved;
+    html += '<div class="rollodds inpop">' + document.getElementById('rollOddsBody').innerHTML + '</div>';
+    renderRollOdds();
+  }
+  return html;
+}
 $('powHelp').onclick = () => {
   if (!power) return;
-  const P = POWERS[power.type];
-  let html = `<p>${P.desc}</p>`;
-  if (power.type === 'b_roll') { renderRollOdds(); html += document.getElementById('rollOddsBody').innerHTML; }
+  let html = powerHelpHTML(power.type);
   html += power.left > 0 && power.left < 100 ? `<p>Uses left this game: <b>${power.left}</b>.</p>` : '';
-  showHelp('Your power', P.name, html);
+  showHelp('Your power', POWERS[power.type].name, html);
+};
+$('powMenuHelp').onclick = e => {
+  e.stopPropagation();
+  showHelp('Your power', POWERS[powerChoice].name, powerHelpHTML(powerChoice) +
+    (powerChoice === 'none' ? '' : '<p>You get this in your next game. Press its button during your turn to use it.</p>'));
 };
 
 /* ---------------- Loading screen ---------------- */
