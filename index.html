@@ -6,7 +6,7 @@
 <title>Lelouch &amp; Ayanokoji</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Marcellus+SC&family=Noto+Sans+Symbols+2&family=Spectral:ital,wght@0,400;0,600;1,400;1,500&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Marcellus+SC&family=Noto+Sans+Symbols+2&family=Spectral:ital,wght@0,400;0,600;1,400;1,500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <style>
 /* Layout: a war table. The board holds the left field; a narrow dispatch column carries Lelouch's voice, orders and the notation. Stacks to one column on phones. */
@@ -6937,17 +6937,17 @@ function engineProgress(source) {
 function finishSplash() {
   if (splashDone) return;
   splashDone = true;
-  const wait = Math.max(0, 900 - (performance.now() - splashStarted));
+  const wait = Math.max(0, 1600 - (performance.now() - splashStarted));
   setTimeout(() => {
     clearInterval(splashTimer); clearInterval(splashTipTimer);
     splashBar.style.width = '100%';
-    const ok = Engine.mode === 'stockfish', loading = Engine.mode === 'loading';
-    splashStatus.textContent = ok ? 'Stockfish ready' : loading ? 'Stockfish is loading in the background' : 'Stockfish couldn’t load · using the backup engine';
+    const ok = Engine.mode === 'stockfish';
+    splashStatus.textContent = ok ? 'Stockfish ready' : 'Stockfish couldn’t load · using the backup engine';
     setTimeout(() => {
       openMenu();
       splashEl.classList.add('done');
       setTimeout(() => { splashEl.hidden = true; }, reduceMotion ? 0 : 520);
-    }, ok || loading ? 250 : 1600);
+    }, ok ? 350 : 1600);
   }, wait);
 }
 
@@ -6990,8 +6990,7 @@ function renderMenu() {
   continueBtn.textContent = watchMode ? `Continue watching ${sideName('w')} vs ${sideName('b')} →` : `Continue your game vs ${BOT().name} →`;
   $('menuFoot').textContent = Engine.mode === 'stockfish'
     ? 'The opponents run on Stockfish 10. Ratings are close estimates.'
-    : Engine.mode === 'backup' ? 'Stockfish didn’t load, so the opponents are using the much weaker backup engine.'
-    : 'Stockfish is still loading in the background. You can start a game now; the bot moves once it’s ready.';
+    : Engine.mode === 'backup' ? 'Stockfish didn’t load, so the opponents are using the much weaker backup engine.' : '';
 }
 function openMenu() {
   menuOpen = true;
@@ -8736,14 +8735,10 @@ function start(data) {
   syncSquareSize();
   updateEngineTag();
   beginSplash();
-  // Don't make anyone wait for Stockfish: the menu opens after a short beat and the engine keeps
-  // loading in the background. A bot's first move simply waits for it if it isn't ready yet.
-  setTimeout(finishSplash, 900);
   engineReady = Engine.init().then(ok => {
     updateEngineTag();
     updateStatus();
     finishSplash();
-    if (menuOpen) renderMenu();
     return ok;
   });
   if (!isOver() && game.turn() === botColor) setTimeout(botTurn, 500);
