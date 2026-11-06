@@ -5451,7 +5451,7 @@ async function castPlayer(type, pick, pick2) {
     const res = applyRoll(c, pick, pc.type, out);
     playerFinish({ from: pick, to: res.to, piece: pc.type, special: 'roll', verb: 'rolls', san: rollSan(pc.type, pick, out, res) },
       out.extra ? (res.none ? 'Bonus, but there was no room for it. No win.' : `Bonus! An extra ${PIECE_WORD[out.extra]} appeared on ${res.to}.`)
-      : out.lose ? 'Bust! You gambled your queen and lost her.' :
+      : out.lose ? (out.loseType === 'q' ? 'Bust! You gambled your queen and lost her.' : 'Bust! Your pawn was gambled away.') :
       { queen: 'JACKPOT! Your piece is a queen now!', rook: `Big win! Your ${PIECE_WORD[pc.type]} is a rook now.`, minor: `Win! Your pawn is a ${PIECE_WORD[out.to]} now.`,
         down: `Bust. Your ${PIECE_WORD[pc.type]} dropped to a ${PIECE_WORD[out.to]}.`, none: 'No win this time.' }[out.tier]);
     return;
@@ -6115,7 +6115,7 @@ async function shotTurn(myGen) {
 
 /* ---------------- Hakari: Idle Gamble ---------------- */
 // As often as he likes (5 moves apart), instead of a move, he rolls one of his own pieces (not the king).
-// Pawn: 69% nothing, 20% bishop or knight, 10% rook, 1% queen.
+// Pawn: 69% the pawn is lost, 20% bishop or knight, 10% rook, 1% queen.
 // Queen: 70% nothing, 15% an extra bishop or knight appears next to her, 15% she's lost.
 // Bishop/knight: 30% down to a pawn, 40% nothing, 20% rook, 10% queen.
 // Rook: 30% down to a bishop or knight, 35% nothing, 20% queen, 15% down to a pawn.
@@ -6134,12 +6134,14 @@ function rollOutcome(type, sq, color) {
   // the far rank, where a pawn can't exist; a drop to a pawn there counts as no win.
   const far = color === 'w' ? sq[1] === '8' : sq[1] === '1';
   const minor = () => (Math.random() < 0.5 ? 'n' : 'b');
+  // A pawn that wins nothing is gambled away.
+  if (res === 'none' && type === 'p') return { to: null, tier: 'down', lose: true, loseType: 'p' };
   if (res === 'none') return { to: type, tier: 'none' };
   if (res === 'minor') return { to: minor(), tier: 'minor' };
   if (res === 'r') return { to: 'r', tier: 'rook' };
   if (res === 'q') return { to: 'q', tier: 'queen' };
   if (res === 'extra') return { to: 'q', tier: 'minor', extra: minor() };
-  if (res === 'lose') return { to: null, tier: 'down', lose: true };
+  if (res === 'lose') return { to: null, tier: 'down', lose: true, loseType: 'q' };
   if (res === 'pawn') return far ? { to: minor(), tier: 'down' } : { to: 'p', tier: 'down' };
   // Down: a rook becomes a bishop or knight; a bishop or knight becomes a pawn.
   if (type === 'r') return { to: minor(), tier: 'down' };
@@ -6174,7 +6176,7 @@ function applyRoll(c, sq, type, out) {
 }
 function rollSan(type, sq, out, res) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
-  if (out.lose) return '⚄Q' + sq + '✕';
+  if (out.lose) return '⚄' + L(out.loseType) + sq + '✕';
   if (res.bonus) return '⚄Q' + sq + '+' + L(res.bonus) + res.to;
   return '⚄' + L(type) + sq + (res.after !== type ? '=' + res.after.toUpperCase() : '');
 }
@@ -6201,7 +6203,7 @@ function slotFx(tier, toType, out = {}) {
     if (tier === 'queen') final = ['7', '7', '7'];
     else if (tier === 'rook') final = [ROLL_GLYPH.r, ROLL_GLYPH.r, ROLL_GLYPH.r];
     else if (out.extra) final = [ROLL_GLYPH.q, ROLL_GLYPH[out.extra], ROLL_GLYPH[out.extra]];
-    else if (out.lose) final = ['✕', ROLL_GLYPH.q, '✕'];
+    else if (out.lose) final = ['✕', ROLL_GLYPH[out.loseType], '✕'];
     else if (tier === 'minor') final = [ROLL_GLYPH[toType], ROLL_GLYPH[toType], ROLL_GLYPH[toType]];
     else if (tier === 'down') final = ['✕', '✕', '✕'];
     else { final = ['7', '7', '3']; if (Math.random() < 0.5) final = ['7', '♟', '7']; }
@@ -6225,7 +6227,7 @@ function slotFx(tier, toType, out = {}) {
         clearInterval(tick);
         box.classList.add('t-' + tier);
         box.querySelector('.slot-label').textContent =
-          out.extra ? `Bonus! Extra ${PIECE_WORD[out.extra]}!` : out.lose ? 'Bust! Queen lost!' : { queen: 'JACKPOT! Queen!', rook: 'Big win! Rook!', minor: `Win! ${PIECE_WORD[toType][0].toUpperCase() + PIECE_WORD[toType].slice(1)}!`, down: 'Bust! Downgrade.', none: 'No win.' }[tier];
+          out.extra ? `Bonus! Extra ${PIECE_WORD[out.extra]}!` : out.lose ? `Bust! ${PIECE_WORD[out.loseType][0].toUpperCase() + PIECE_WORD[out.loseType].slice(1)} lost!` : { queen: 'JACKPOT! Queen!', rook: 'Big win! Rook!', minor: `Win! ${PIECE_WORD[toType][0].toUpperCase() + PIECE_WORD[toType].slice(1)}!`, down: 'Bust! Downgrade.', none: 'No win.' }[tier];
         Sound.play('roll_' + tier);
         if (tier === 'queen') {
           boardEl.classList.remove('jackflash'); void boardEl.offsetWidth; boardEl.classList.add('jackflash');
@@ -6260,7 +6262,7 @@ async function rollTurn(myGen) {
   if (myGen !== gen) return;
   const res = applyRoll(c, pickP.sq, pickP.type, out);
   const say2 = pick(res.none ? 'rollNone' : { queen: 'rollQueen', rook: 'rollRook', minor: 'rollMinor', down: 'rollDown', none: 'rollNone' }[out.tier]);
-  await finishSpecial(myGen, c, { from: pickP.sq, to: res.to, piece: pickP.type, captured: out.lose ? 'q' : undefined, special: 'roll', verb: 'rolls',
+  await finishSpecial(myGen, c, { from: pickP.sq, to: res.to, piece: pickP.type, captured: out.lose ? out.loseType : undefined, special: 'roll', verb: 'rolls',
     san: rollSan(pickP.type, pickP.sq, out, res) }, say2);
 }
 
@@ -6348,7 +6350,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
-  b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse. Gambling your queen can win an extra piece or lose her.' },
+  b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
   b_punch: { name: 'Boxing (Colton)', bot: true, desc: '3 punches a game: two knock out one of the bot\u2019s bishops or knights (the first takes half its health), and the last one can only take a pawn.' },
