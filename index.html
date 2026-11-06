@@ -1315,7 +1315,7 @@ BOTS.light = {
 };
 BOTS.johan = {
   name: 'Johan', crest: '\u265E', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'whisper',
-  tag: 'Calm, polite, and terrifying. Twice a game he whispers to one of your pieces, and it captures another of your own pieces.',
+  tag: 'Calm, polite, and terrifying. Twice a game he whispers to one of your pieces, and it captures another of your own knights, bishops or pawns (never a rook or queen, and never putting your king in check). Not in his first 15 moves, and 10 moves between whispers.',
   // Stockfish skill 15 is about 2620; Whisper brings him to about 2650.
   levels: [
     { elo: 2650, skill: 15, depth: 22, time: 5000 }
@@ -6819,7 +6819,7 @@ function checkDNote(mv) {
 let whisperBy = { w: 0, b: 0 };
 function betrayals(c) {
   const v = other(c), out = [];
-  const victims = piecesOf(v, pc => 'pnbr'.includes(pc.type));
+  const victims = piecesOf(v, pc => 'pnb'.includes(pc.type));   // never a rook, queen or king
   for (const b of victims) {
     const parts = game.fen().split(' ');
     parts[1] = v; parts[3] = '-';
@@ -6832,7 +6832,7 @@ function betrayals(c) {
       game.remove(m.from); game.remove(b.sq); game.put({ type: m.piece, color: v }, b.sq);
       const f = passFen(c);
       game.remove(b.sq); game.put({ type: m.piece, color: v }, m.from); game.put({ type: b.type, color: v }, b.sq);
-      if (kingAttacked(f, c)) continue;
+      if (kingAttacked(f, c) || kingAttacked(f, v)) continue;   // and it can't put your own king in check
       out.push({ from: m.from, to: b.sq, piece: m.piece, victim: b.type });
     }
   }
@@ -6841,10 +6841,10 @@ function betrayals(c) {
 function canWhisper() {
   if (BOT().ability !== 'whisper' || !abilityOn() || isOver() || game.in_check()) return false;
   const c = botColor, n = botMoveCount();
-  if (n < 8 || (whisperBy[c] || 0) >= 2) return false;
+  if (n < 15 || (whisperBy[c] || 0) >= 2) return false;   // never in his first 15 moves
   let last = -99, k = 0;
   for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'whisper' && m.color === c) last = k; }
-  if (n - last < 6) return false;
+  if (n - last < 10) return false;   // 10 moves between whispers
   if (!betrayals(c).length) return false;
   return n >= 30 || Math.random() < 0.16;
 }
@@ -7048,7 +7048,7 @@ const POWERS = {
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
-  b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
+  b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures one of the bot\u2019s own knights, bishops or pawns (never a rook, queen or king, and never into check). Not in your first 15 moves, 10 moves between whispers.' },
   b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: '3 times a game: tap a bot pawn to turn it into a bomb. It goes off at a random time within your next 6 moves. The pawn goes, plus one knight, bishop or rook next to it if there is one, otherwise the pawns around it. Not in your first 10 moves, and 5 moves between a blast and the next bomb.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
@@ -7794,6 +7794,12 @@ $('powerBtn').onclick = () => {
   if (t === 'shield' || t === 'swap' || t === 'b_gpro') { powerPick = t; swapFirst = null; selected = null; render(); renderControls(); return; }
   if (game.in_check() && t !== 'b_illusion') { statusFlash('You\u2019re in check. Deal with that first.'); return; }
   if (TARGETED.has(t)) {
+    if (t === 'b_whisper') {
+      const mine = moveLog.filter(m => m.color === playerColor);
+      let last = -99; mine.forEach((m, i) => { if (m.special === 'whisper') last = i + 1; });
+      if (mine.length < 15) { statusFlash('Whisper can\u2019t be used in your first 15 moves.'); return; }
+      if (mine.length - last < 10) { const k = 10 - (mine.length - last); statusFlash(`Whisper is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}.`); return; }
+    }
     if (t === 'b_bomb' && moveLog.filter(m => m.color === playerColor).length < 10) { statusFlash('Killer Queen can\u2019t be used in your first 10 moves.'); return; }
     if (t === 'b_bomb' && bombCooldown(playerColor) > 0) { const k = bombCooldown(playerColor); statusFlash(`Killer Queen is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}.`); return; }
     if (t === 'b_roll' && rollCooldown(playerColor) > 0) { const k = rollCooldown(playerColor); statusFlash(`The slot machine is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}.`); return; }
