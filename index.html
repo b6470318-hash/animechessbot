@@ -6113,13 +6113,13 @@ async function shotTurn(myGen) {
 // Three times a game, instead of a move, he rolls one of his own pawns, knights, bishops or rooks.
 // Pawn: 80% nothing, 15% bishop or knight, 5% rook.
 // Bishop/knight: 30% down to a pawn, 40% nothing, 20% rook, 10% queen.
-// Rook: 25% down to a bishop or knight, 45% nothing, 30% queen.
+// Rook: 30% down to a bishop or knight, 35% nothing, 20% queen, 15% down to a pawn.
 let rollBy = { w: 0, b: 0 };
 const ROLL_ODDS = {
   p: [[0.80, 'none'], [0.15, 'minor'], [0.05, 'r']],
   n: [[0.30, 'down'], [0.40, 'none'], [0.20, 'r'], [0.10, 'q']],
   b: [[0.30, 'down'], [0.40, 'none'], [0.20, 'r'], [0.10, 'q']],
-  r: [[0.25, 'down'], [0.45, 'none'], [0.30, 'q']]
+  r: [[0.30, 'down'], [0.35, 'none'], [0.20, 'q'], [0.15, 'pawn']]
 };
 function rollOutcome(type, sq) {
   let x = Math.random(), res = 'none';
@@ -6129,6 +6129,8 @@ function rollOutcome(type, sq) {
   if (res === 'minor') return { to: Math.random() < 0.5 ? 'n' : 'b', tier: 'minor' };
   if (res === 'r') return { to: 'r', tier: 'rook' };
   if (res === 'q') return { to: 'q', tier: 'queen' };
+  // A rook can crash all the way to a pawn (on the back rank, where pawns can't stand, it drops to a bishop or knight).
+  if (res === 'pawn') return back ? { to: Math.random() < 0.5 ? 'n' : 'b', tier: 'down' } : { to: 'p', tier: 'down' };
   // Down: a rook becomes a bishop or knight; a bishop or knight becomes a pawn (pawns can't stand on the back rank, so there it's just a miss).
   if (type === 'r') return { to: Math.random() < 0.5 ? 'n' : 'b', tier: 'down' };
   return back ? { to: type, tier: 'none' } : { to: 'p', tier: 'down' };
