@@ -1184,7 +1184,7 @@ BOTS.valentine = {
 };
 BOTS.mista = {
   name: 'Mista', crest: '\u265C', statLabel: 'Captures', quiet: false, style: 'chaos', ability: 'pistols', pace: 0.75,
-  tag: 'A lucky gunslinger who hates the number four. Three shots a game: Sex Pistols hit a pawn, knight or bishop in a line from his pieces, even around a corner piece.',
+  tag: 'A lucky gunslinger who hates the number four. Three shots a game at anything his pieces can see (never a queen or king): a hit takes half its health, two take it out, and bullets sometimes bounce into a second piece.',
   // Mostly Stockfish Skill 0 moves (about 1350) with a few loose ones; his shots make up the rest.
   chaos: { good: 0.97, greedy: 0.6, depth: 9 },
   levels: [
@@ -3502,9 +3502,9 @@ const LINES_MISTA = {
   reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. At least it wasn't four.`],
   // His 4th move: he hates the number four.
   four: ["Move four. Ugh. I hate four.", "Four... why'd it have to be four?"],
-  // Sex Pistols: three shots a game, each takes a pawn, knight or bishop in a line from one of his pieces.
+  // Sex Pistols: three shots a game; a hit takes half health, two take a piece out, bullets can bounce.
   shot: [n => `Sex Pistols, shot number ${n}! Go!`, n => `Shot ${n}. Pistols, carry it!`],
-  shotAfter: [p => `Your ${p} took a bullet.`, p => `Bang. That ${p}'s gone.`],
+  shotAfter: [p => `Your ${p} took a bullet.`, p => `Bang. Right on your ${p}.`],
   noFour: ["Three shots. I'm NOT firing a fourth."]
 };
 BOTS.mista.lines = LINES_MISTA;
@@ -5271,7 +5271,7 @@ function powerPickSquare(sq) {
 // Abilities where you tap the piece it hits.
 const TARGETED = new Set(['b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
-  b_pistols: 'Tap a bot pawn, knight or bishop to shoot',
+  b_pistols: 'Tap a bot piece your pieces can see to shoot',
   b_d4c: 'Tap a piece to copy (not a queen or a king)',
   b_geass: 'Tap a bot rook, bishop or knight to take control of',
   b_hand: 'Tap a bot piece to erase',
@@ -5351,13 +5351,12 @@ async function castPlayer(type, pick, pick2) {
   if (type === 'b_pistols') {
     const s = pistolShots(c).find(x => x.sq === pick);
     if (!s) return;
-    spendPower(); busy(); Sound.play('gunshot');
-    await wait(650); if (myGen !== gen) return;
-    shotFx(s.from, s.sq);
-    await wait(600); if (myGen !== gen) return; done();
-    game.remove(s.sq);
-    playerFinish({ from: s.from, to: s.sq, piece: s.type, captured: s.type, special: 'shot', verb: 'shoots', san: '\u2316' + L(s.type) + s.sq },
-      `Sex Pistols! The bot's ${PIECE_WORD[s.type]} on ${s.sq} is shot.`);
+    spendPower(); busy();
+    const plan = planShot(c, s.sq, s.from);
+    const entry = await fireShot(c, plan, myGen, wait);
+    if (!entry) return;
+    done();
+    playerFinish(entry, `Sex Pistols! The bot's ${shotWords(plan)}.`);
     return;
   }
   if (type === 'b_d4c') {
@@ -5569,7 +5568,7 @@ function hurtSquare(victim) {
     if (!t) continue;
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
-      else if (m.special === 'd4c' || m.special === 'gpromote') { /* nothing moved */ }
+      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'shot') { /* nothing moved; a kill shows on the board */ }
       else if (m.to === t || m.from === t) t = null;
       continue;
     }
@@ -5863,31 +5862,72 @@ async function d4cTurn(myGen) {
 }
 
 /* ---------------- Mista: Sex Pistols ---------------- */
-// Three shots a game (he won't fire a fourth), each instead of a move. A shot hits an enemy pawn,
-// knight or bishop that one of the shooter's pieces lines up with along a rank, file or diagonal.
-// The Pistols can steer the bullet past one piece in the way.
+// Three shots a game (he won't fire a fourth), each instead of a move. Like Colton's punches, a hit
+// takes half a piece's health and a second hit takes it out (pawns go down in one). He can only
+// shoot what one of his pieces sees in a clear line, never a queen or king, and about one shot in
+// three bounces off its target into a second piece the first one can see.
 let shotBy = { w: 0, b: 0 };
-function pistolShots(c) {
-  const v = other(c), F = 'abcdefgh', out = [];
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-  for (const t of piecesOf(v, pc => 'pnb'.includes(pc.type))) {
-    const tf = F.indexOf(t.sq[0]), tr = +t.sq[1];
-    let from = null;
-    for (const [df, dr] of dirs) {
-      let f = tf + df, r = tr + dr, between = 0;
-      while (f >= 0 && f < 8 && r >= 1 && r <= 8) {
-        const pc = game.get(F[f] + r);
-        if (pc) {
-          if (pc.color === c && pc.type !== 'k') { from = F[f] + r; break; }
-          if (++between > 1) break;
-        }
-        f += df; r += dr;
-      }
-      if (from) break;
+const SHOT_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+// The first piece seen from sq in each direction.
+function seenFrom(sq) {
+  const F = 'abcdefgh', f0 = F.indexOf(sq[0]), r0 = +sq[1], out = [];
+  for (const [df, dr] of SHOT_DIRS) {
+    let f = f0 + df, r = r0 + dr;
+    while (f >= 0 && f < 8 && r >= 1 && r <= 8) {
+      const s = F[f] + r, pc = game.get(s);
+      if (pc) { out.push({ sq: s, pc }); break; }
+      f += df; r += dr;
     }
-    if (from) out.push({ sq: t.sq, type: t.type, from });
   }
   return out;
+}
+const shootable = (pc, v) => pc && pc.color === v && pc.type !== 'q' && pc.type !== 'k';
+// Every enemy piece one of c's pieces (not the king) can see, with the shooter.
+function pistolShots(c) {
+  const v = other(c), out = [], seen = new Set();
+  for (const me of piecesOf(c, pc => pc.type !== 'k')) {
+    for (const t of seenFrom(me.sq)) {
+      if (!shootable(t.pc, v) || seen.has(t.sq) || t.sq === shieldSq()) continue;
+      seen.add(t.sq);
+      out.push({ sq: t.sq, type: t.pc.type, from: me.sq });
+    }
+  }
+  return out;
+}
+// Squares of v's pieces that took a bullet and are at half health.
+function shotHurt(v) {
+  const set = new Set();
+  for (const m of moveLog) {
+    if (m.special === 'shot') {
+      if (m.color !== v && m.hits) for (const h of m.hits.split(',')) { const [s, k] = h.split(':'); if (k === 'w') set.add(s); else set.delete(s); }
+      continue;
+    }
+    if (!set.size) continue;
+    if (m.asc) {
+      if (m.special === 'swap') { const A = set.has(m.from), B = set.has(m.to); set.delete(m.from); set.delete(m.to); if (A) set.add(m.to); if (B) set.add(m.from); }
+      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'punch') { /* nothing moved or died */ }
+      else { set.delete(m.to); set.delete(m.from); }
+      continue;
+    }
+    if (m.color === v) {
+      if (set.has(m.from)) { set.delete(m.from); set.add(m.to); }
+      const rank = v === 'w' ? '1' : '8';
+      if (m.flags && m.flags.includes('k') && set.has('h' + rank)) { set.delete('h' + rank); set.add('f' + rank); }
+      if (m.flags && m.flags.includes('q') && set.has('a' + rank)) { set.delete('a' + rank); set.add('d' + rank); }
+    } else set.delete(m.to);
+  }
+  return [...set].filter(s => { const pc = game.get(s); return pc && pc.color === v && 'nbr'.includes(pc.type); });
+}
+// Work out what a shot at target does, including a possible bounce. Board is not changed.
+function planShot(c, target, from) {
+  const v = other(c), hurt = new Set(shotHurt(v));
+  const hitOf = s => { const pc = game.get(s); return { sq: s, type: pc.type, kill: pc.type === 'p' || hurt.has(s) }; };
+  const hits = [hitOf(target)];
+  if (Math.random() < 0.35) {
+    const next = seenFrom(target).filter(t => shootable(t.pc, v) && t.sq !== shieldSq());
+    if (next.length) hits.push(hitOf(rand(next).sq));
+  }
+  return { from, hits };
 }
 function canShoot() {
   if (BOT().ability !== 'pistols' || !abilityOn() || isOver() || game.in_check()) return false;
@@ -5895,11 +5935,12 @@ function canShoot() {
   if (n < 5 || (shotBy[c] || 0) >= 3 || !pistolShots(c).length) return false;
   let last = -99, k = 0;
   for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'shot' && m.color === c) last = k; }
-  if (n - last < 5) return false;
-  return n >= 30 || Math.random() < 0.15;
+  if (n - last < 4) return false;
+  const finish = shotHurt(other(c)).some(s => pistolShots(c).some(x => x.sq === s));
+  return n >= 30 || Math.random() < (finish ? 0.6 : 0.15);
 }
-// A bullet streak from the shooter to the target, then the target falls.
-function shotFx(from, to) {
+// A bullet streak from one square to another; the piece shakes (wounded) or falls (out).
+function shotFx(from, to, kill) {
   if (reduceMotion) return;
   const a = boardEl.querySelector(`[data-sq="${from}"]`), b = boardEl.querySelector(`[data-sq="${to}"]`);
   if (!a || !b) return;
@@ -5910,34 +5951,58 @@ function shotFx(from, to) {
   line.style.cssText = `left:${x1}px;top:${y1}px;width:${Math.hypot(x2 - x1, y2 - y1)}px;transform:rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)`;
   wrapEl.appendChild(line);
   setTimeout(() => {
-    b.classList.add('punched');
+    b.classList.remove('punched'); void b.offsetWidth; b.classList.add('punched');
     const pc = boardEl.querySelector(`[data-sq="${to}"] .pc`);
-    if (pc) pc.classList.add('blasted');
+    if (kill && pc) pc.classList.add('blasted');
   }, 260);
   setTimeout(() => line.remove(), 900);
 }
+// Play a planned shot: effects, then the board change, then the log entry.
+async function fireShot(c, plan, myGen, wait) {
+  Sound.play('gunshot');
+  await wait(600); if (myGen !== gen) return null;
+  shotFx(plan.from, plan.hits[0].sq, plan.hits[0].kill);
+  if (plan.hits[1]) {
+    await wait(380); if (myGen !== gen) return null;
+    Sound.play('ricochet');
+    shotFx(plan.hits[0].sq, plan.hits[1].sq, plan.hits[1].kill);
+  }
+  await wait(650); if (myGen !== gen) return null;
+  for (const h of plan.hits) if (h.kill) game.remove(h.sq);
+  const first = plan.hits[0], killed = plan.hits.find(h => h.kill);
+  return {
+    from: plan.from, to: first.sq, piece: first.type, captured: killed ? killed.type : undefined, special: 'shot', verb: 'shoots',
+    hits: plan.hits.map(h => h.sq + ':' + (h.kill ? 'k' : 'w')).join(','),
+    san: '⌖' + (first.type === 'p' ? '' : first.type.toUpperCase()) + first.sq + (first.kill ? '' : '½') + (plan.hits[1] ? '+' + plan.hits[1].sq : '')
+  };
+}
+function shotWords(plan) {
+  return plan.hits.map(h => `${PIECE_WORD[h.type]} on ${h.sq} ${h.kill ? 'is out' : 'is at half health'}`).join(', and the bullet bounced: the ');
+}
 async function shotTurn(myGen) {
-  const c = botColor, V = { p: 1, n: 3, b: 3 };
+  const c = botColor, v = other(c), V = { p: 1, n: 3, b: 3, r: 5 };
   const list = pistolShots(c);
   if (!list.length) return;
+  // Finish off a wounded piece first; otherwise go for the most valuable target.
+  const hurt = new Set(shotHurt(v));
+  const fin = list.filter(x => hurt.has(x.sq));
   const top = Math.max(...list.map(x => V[x.type]));
-  const s = rand(Math.random() < 0.75 ? list.filter(x => V[x.type] === top) : list);
+  const s = fin.length ? rand(fin) : rand(Math.random() < 0.75 ? list.filter(x => V[x.type] === top) : list);
   shotBy[c] = (shotBy[c] || 0) + 1;
   const n = shotBy[c];
   thinking = true;
   updateStatus(); renderControls();
   say((pick('shot') || (() => ''))(n));
-  Sound.play('gunshot');
-  await new Promise(r => setTimeout(r, 650));
-  if (myGen !== gen) return;
-  shotFx(s.from, s.sq);
-  await new Promise(r => setTimeout(r, 600));
-  if (myGen !== gen) return;
-  const hit = applyReflect(s.sq);
-  game.remove(hit.sq);
-  const after = reflectLine() || (n === 3 ? pick('noFour') : (pick('shotAfter') || (() => ''))(PIECE_WORD[hit.type]));
-  await finishSpecial(myGen, c, { from: s.from, to: hit.sq, piece: hit.type, captured: hit.type, special: 'shot', verb: 'shoots',
-    san: '⌖' + (hit.type === 'p' ? '' : hit.type.toUpperCase()) + hit.sq }, after);
+  const plan = planShot(c, s.sq, s.from);
+  // Reflect (your power) turns a killing hit back on one of his pieces.
+  if (plan.hits[0].kill) {
+    const hit = applyReflect(plan.hits[0].sq);
+    if (hit.sq !== plan.hits[0].sq) { plan.hits = [{ sq: hit.sq, type: hit.type, kill: true }]; }
+  }
+  const entry = await fireShot(c, plan, myGen, ms => new Promise(r => setTimeout(r, ms)));
+  if (!entry) return;
+  const after = reflectLine() || (n === 3 ? pick('noFour') : (pick('shotAfter') || (() => ''))(PIECE_WORD[plan.hits[0].type]));
+  await finishSpecial(myGen, c, entry, after);
 }
 
 /* ---------------- Owen: Pawn Rush ---------------- */
@@ -6024,7 +6089,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
-  b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot pawn, knight or bishop that one of your pieces lines up with (a rank, file or diagonal, past at most one piece) to shoot it.' },
+  b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
   b_punch: { name: 'Boxing (Colton)', bot: true, desc: '3 punches a game: two knock out one of the bot\u2019s bishops or knights (the first takes half its health), and the last one can only take a pawn.' },
   b_slash: { name: 'Sword slice (Guts)', bot: true, desc: 'Once a game: one swing down a whole file or rank cuts the first piece it meets, if it\u2019s the bot\u2019s and not a queen or king.' },
@@ -7477,11 +7542,11 @@ const Sound = {
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
       }
+      else if (kind === 'ricochet') { this.sweep(t, 6000, 2200, 0.25, 0.14, 6); this.tone(t, 3100, 0.05, 0.3, 'sine'); this.tone(t + 0.02, 2600, 0.03, 0.25, 'sine'); }
       else if (kind === 'gunshot') {
         this.crunch(t, 0.12, 0.5, 2);
         this.knock(t, 120, 1, 0.25);
         this.sweep(t + 0.02, 4000, 700, 0.2, 0.3, 1.2);
-        this.tone(t + 0.85, 2400, 0.04, 0.25, 'sine'); this.sweep(t + 0.85, 3000, 1600, 0.2, 0.08, 4);
       }
       else if (kind === 'd4c') {
         this.sweep(t, 200, 3200, 0.9, 0.18, 1.5);
@@ -7739,7 +7804,7 @@ function render(animateMv) {
   const lastMark = analysis && last && plyShown <= analysis.n ? analysis.marks[plyShown - 1] : null;
   const targets = live && selected ? targetsFor(selected) : new Map();
   const chk = g.in_check() ? kingSquare(g.turn(), g) : null;
-  const hurt = live ? [hurtSquare('w'), hurtSquare('b')] : [];
+  const hurt = live ? [hurtSquare('w'), hurtSquare('b'), ...shotHurt('w'), ...shotHurt('b')] : [];
   const ptg = new Set(live && (TARGETED.has(powerPick) || powerPick === 'b_forceline') ? powerTargets(powerPick) : []);
   let html = '';
   rIdx.forEach((r, ri) => fIdx.forEach((f, fi) => {
@@ -8269,7 +8334,7 @@ function snapshotState() {
   return {
     v: 2, log: moveLog.map(m => ({ from: m.from, to: m.to, promotion: m.promotion, san: m.san, color: m.color, piece: m.piece,
       captured: m.captured, flags: m.flags, fen: m.fen, ts: m.ts || undefined, reset: m.reset || undefined, asc: m.asc || undefined,
-      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
+      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined, hits: m.hits || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
     clock: clock ? { base: clock.base, inc: clock.inc, w: clockLeft('w'), b: clockLeft('b'), running: clock.turnStart != null } : null,
     prevBotScore, lastEvalWhite, lastDepth, announced: { ...announced }
   };
