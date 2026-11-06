@@ -615,6 +615,8 @@ canvas.coins.full{position:fixed;z-index:41}
 @keyframes dnfx{0%{opacity:0;transform:scale(.5)}30%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.3)}}
 .whisperfx{border-radius:50%;background:radial-gradient(circle, rgba(220,230,255,.0) 30%, rgba(200,215,255,.55) 55%, transparent 72%);animation:whisperfx 1.5s ease-in-out forwards}
 @keyframes whisperfx{0%,100%{opacity:0}30%,70%{opacity:1}}
+.clonefx{border-radius:50%;background:radial-gradient(circle, rgba(255,255,255,.9), rgba(255,170,60,.55) 45%, transparent 70%);animation:clonefx .9s ease-out forwards}
+@keyframes clonefx{0%{opacity:0;transform:scale(.3)}40%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(1.4)}}
 .sawline{position:absolute;z-index:7;pointer-events:none;transform-origin:0 50%;margin-top:-3px;
   background:repeating-linear-gradient(90deg, #ffb46b 0 6px, #7a3a12 6px 9px);box-shadow:0 0 10px rgba(255,138,61,.9);
   animation:sawline 1s ease-out forwards}
@@ -1388,6 +1390,19 @@ BOTS.denji = {
     '--muted': '#c0a191', '--gold': '#ff8a3d', '--gold-ink': '#2a1004', '--graph-bg': '#1a0f0a' },
   card: { bg: '#1a0f0a', rule: '#3b2418', text: '#fbefe7', muted: '#c0a191', accent: '#ff8a3d', ink: '#2a1004' }
 };
+BOTS.naruto = {
+  name: 'Naruto', crest: '\u265F', statLabel: 'Captures', quiet: false, style: 'chaos', ability: 'clone', pace: 0.7,
+  tag: 'Loud, reckless, and never gives up. Twice a game, Shadow Clone copies one of his pawns onto any empty square on that pawn\u2019s row.',
+  // A bit under Owen (0.74, depth 5): a lot of loose moves.
+  chaos: { good: 0.66, greedy: 0.55, depth: 4 },
+  levels: [
+    { elo: 400, skill: 0, depth: 3, time: 400 }
+  ],
+  crestPiece: 'wp',
+  palette: { '--ink': '#110c05', '--glow': '#22170a', '--panel': '#1a1208', '--rule': '#3b2a12', '--text': '#fff3e2',
+    '--muted': '#c6ab88', '--gold': '#ff9a1f', '--gold-ink': '#2a1500', '--graph-bg': '#1a1208' },
+  card: { bg: '#1a1208', rule: '#3b2a12', text: '#fff3e2', muted: '#c6ab88', accent: '#ff9a1f', ink: '#2a1500' }
+};
 let botId = 'lelouch', nextBotId = 'lelouch';
 // Bot vs bot: which bot and level plays each color, and whether they play at human pace.
 let watchMode = false, watchFast = false;
@@ -1395,7 +1410,7 @@ let sideBot = { w: 'lelouch', b: 'ayanokoji' }, sideLevel = { w: 0, b: 0 };
 let prevBy = { w: null, b: null }, annBy = { w: {}, b: {} };
 const levelIdxBy = { lelouch: 0, ayanokoji: 0 };
 // Special powers can be switched off per bot from its card on the Opponents screen.
-const ABILITY_NAMES = { denji: 'Chainsaw', light: 'Death Note', johan: 'Whisper', kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
+const ABILITY_NAMES = { naruto: 'Shadow Clone', denji: 'Chainsaw', light: 'Death Note', johan: 'Whisper', kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
 const abilitiesOn = {};
 const abilityOn = () => abilitiesOn[botId] !== false;
 const BOT = () => BOTS[botId];
@@ -3905,6 +3920,46 @@ const LINES_DENJI = {
   sawAfter: [n => n > 1 ? 'Two in one go! Ha!' : 'Got one!', n => n > 1 ? 'Sawed right through!' : 'Ripped through it!']
 };
 BOTS.denji.lines = LINES_DENJI;
+const LINES_NARUTO = {
+  greetWhite: ["I'm going first! Watch me!", "Alright, let's go! I've been waiting for this!"],
+  greetBlack: ["You first! I'll come back swinging!", "Go ahead. I'm not scared of anybody!"],
+  restore: ["You came back! Good, I wasn't done yet!"],
+  kingMarch: ["My king's charging in! Nothing can stop him!"],
+  kingActive: ["Running straight at it! That's my style!"],
+  check: ["Check! Ha! Saw that one coming, right?", "Check! I told you I'd do it!"],
+  capture: ["Got it! Easy!", "That one's mine now!", "Ha! Too slow!"],
+  blunder: ["Whoa, free piece! Thanks!", "You just left that there? Sweet!"],
+  strong: ["Okay, that was really good.", "Whoa. You're strong. That just makes me want to win more!"],
+  winning: ["I'm winning! I knew I could do it!"],
+  losing: ["I don't care how bad it looks. I'm not quitting!", "I'm never giving up. Not ever!"],
+  mate: [n => `Mate in ${n}! Here it comes!`],
+  playerCheck: ["Hey! Check?! Not cool!", "Ow! Okay, okay, I'll get out of it!"],
+  ambient: ["One day I'm gonna be the best at this.", "I'm hungry. Ramen after this.", "Don't count me out!", "I work harder than anybody. That's my secret."],
+  botWins: ["Checkmate! I did it! I really did it!", "I won! Told you I would!"],
+  playerWins: ["Aw man! You got me. Rematch, right now!", "Checkmate? Ugh. I'll train harder and beat you next time!"],
+  draw: ["A draw? Neither of us lost! I'll take it, but next time I win."],
+  resign: ["You're giving up? I never give up!"],
+  undo: ["No take-backs! A ninja doesn't go back!", "Nope, it's done!"],
+  playerFlag: ["Out of time! Ha!"],
+  botFlag: ["My clock ran out?! That's not fair!"],
+  botPromote: ["My pawn made it all the way! A queen!"],
+  playerPromote: ["A new queen? Fine, I'll beat her too!"],
+  queenTaken: ["Got your queen! How do you like that?!"],
+  queenLost: ["My queen! Okay, okay, I can still win this!"],
+  queenBlunder: ["...Oops. I didn't see that."],
+  playerCastle: ["Hiding your king? Coward! Just kidding."],
+  playerKing: ["Your king's out here too? Alright, let's go!"],
+  sacrifice: ["Take it! I've got a plan! Kind of!", "Go ahead, take it!"],
+  endgame: ["Final round! This is where I shine!"],
+  longGame: ["Long game, huh? I've got way more energy than you."],
+  hint: ["Here, a hint! Don't say I never helped."],
+  reviewClean: ["No blunders! You're pretty good."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}! Just gotta train more!`],
+  // Shadow Clone: twice a game, a copy of one of his pawns appears anywhere on that pawn's row.
+  clone: ["Shadow Clone! Now there's two of me!", "Clone jutsu! Try to keep up!"],
+  cloneAfter: ["More of me! Good luck!", "Two's better than one!"]
+};
+BOTS.naruto.lines = LINES_NARUTO;
 BOTS.yuta.lines = LINES_YUTA;
 const lastPicked = {};
 function pick(cat) {
@@ -4764,6 +4819,7 @@ async function botTurn() {
   if (canRoll()) { rollTurn(myGen); return; }
   if (canWhisper()) { whisperTurn(myGen); return; }
   if (canSaw()) { sawTurn(myGen); return; }
+  if (canClone()) { cloneTurn(myGen); return; }
   thinking = true;
   updateStatus(); renderControls();
   const started = Date.now();
@@ -5572,6 +5628,7 @@ function renderPower() {
     powerPick === 'shield' ? 'Tap one of your pieces to shield it (tap here to cancel)' :
     powerPick === 'b_gpro' ? 'Tap one of your pawns to promote it (tap here to cancel)' :
     powerPick === 'b_manip' && swapFirst ? 'Now tap the second bot piece (tap here to cancel)' :
+    powerPick === 'b_clone' && swapFirst ? 'Now tap an empty square on that row (tap here to cancel)' :
     powerPick === 'b_forceline' ? (forceFrom ? 'Now tap where it has to go' : 'Tap the bot piece that has to move') :
     PICK_TEXT[powerPick] ? PICK_TEXT[powerPick] + ' (tap here to cancel)' :
     powerPick === 'swap' ? (swapFirst ? 'Now tap the second piece to swap with' : 'Tap the first piece to swap (tap here to cancel)') :
@@ -5631,15 +5688,15 @@ function powerPickSquare(sq) {
     const t = powerPick;
     if (!playerCanMove()) return;
     if (!powerTargets(t).includes(sq)) {
-      if (t === 'b_manip' && swapFirst === sq) { swapFirst = null; render(); renderControls(); return; }
+      if ((t === 'b_manip' || t === 'b_clone') && swapFirst === sq) { swapFirst = null; render(); renderControls(); return; }
       statusFlash(PICK_TEXT[t] + '.');
       return;
     }
-    if (t === 'b_manip' && !swapFirst) { swapFirst = sq; render(); renderControls(); return; }
+    if ((t === 'b_manip' || t === 'b_clone') && !swapFirst) { swapFirst = sq; render(); renderControls(); return; }
     const first = swapFirst;
     powerPick = null; swapFirst = null; selected = null;
     render(); renderControls();
-    if (t === 'b_manip') castPlayer(t, first, sq); else castPlayer(t, sq);
+    if (t === 'b_manip' || t === 'b_clone') castPlayer(t, first, sq); else castPlayer(t, sq);
     return;
   }
   const mine = pc && pc.color === playerColor && pc.type !== 'k';
@@ -5702,8 +5759,9 @@ function powerPickSquare(sq) {
 
 /* ---------------- Your copies of the bots' abilities ---------------- */
 // Abilities where you tap the piece it hits.
-const TARGETED = new Set(['b_saw', 'b_dnote', 'b_whisper', 'b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
+const TARGETED = new Set(['b_clone', 'b_saw', 'b_dnote', 'b_whisper', 'b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
+  b_clone: 'Tap one of your pawns to clone',
   b_saw: 'Tap one of your rooks to rev the chainsaw',
   b_dnote: 'Tap a bot piece to write in the Death Note',
   b_whisper: 'Tap the bot piece to whisper to',
@@ -5730,6 +5788,7 @@ function powerTargets(type) {
     const minors = pieces.filter(x => x.type !== 'p');
     return (minors.length ? minors : pieces).map(sq);
   }
+  if (type === 'b_clone') return swapFirst ? cloneSquares(c, swapFirst) : cloneOptions(c).map(x => x.from);
   if (type === 'b_saw') return [...new Set(sawCuts(c).map(x => x.from))];
   if (type === 'b_dnote') return dnoteState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
   if (type === 'b_whisper') return [...new Set(betrayals(c).map(x => x.from))];
@@ -5791,6 +5850,17 @@ async function castPlayer(type, pick, pick2) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
   const busy = () => { thinking = true; updateStatus(); renderControls(); };
   const done = () => { thinking = false; };
+  if (type === 'b_clone') {
+    const from = pick, to = pick2;
+    if (!cloneSquares(c, from).includes(to)) return;
+    spendPower(); busy(); Sound.play('poof'); squareFx(from, 'clonefx');
+    await wait(500); if (myGen !== gen) return;
+    smokeFx(to); squareFx(to, 'clonefx');
+    await wait(650); if (myGen !== gen) return; done();
+    game.put({ type: 'p', color: c }, to);
+    playerFinish({ from, to, piece: 'p', special: 'clone', verb: 'clones', san: '\u2687' + from + '>' + to }, `Shadow Clone! A copy of your pawn appeared on ${to}.`);
+    return;
+  }
   if (type === 'b_saw') {
     const V = { r: 5, b: 3, n: 3, p: 1 };
     const list = sawCuts(c).filter(x => x.from === pick);
@@ -6076,7 +6146,7 @@ function hurtSquare(victim) {
     if (!t) continue;
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
-      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'shot') { /* nothing moved; a kill shows on the board */ }
+      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'shot' || m.special === 'clone') { /* nothing moved; a kill shows on the board */ }
       else if (m.to === t || m.from === t) t = null;
       continue;
     }
@@ -6413,7 +6483,7 @@ function shotHurt(v) {
     if (!set.size) continue;
     if (m.asc) {
       if (m.special === 'swap') { const A = set.has(m.from), B = set.has(m.to); set.delete(m.from); set.delete(m.to); if (A) set.add(m.to); if (B) set.add(m.from); }
-      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'punch') { /* nothing moved or died */ }
+      else if (m.special === 'd4c' || m.special === 'gpromote' || m.special === 'punch' || m.special === 'clone') { /* nothing moved or died */ }
       else { set.delete(m.to); set.delete(m.from); }
       continue;
     }
@@ -6779,7 +6849,7 @@ function bombState(upto = moveLog.length) {
     if (m.color === by) cnt++;
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
-      else if (['d4c', 'punch', 'gpromote', 'dnoteset'].includes(m.special)) { /* nothing moved */ }
+      else if (['d4c', 'punch', 'gpromote', 'dnoteset', 'clone'].includes(m.special)) { /* nothing moved */ }
       else if (m.to === t || m.from === t) t = null;
       continue;
     }
@@ -6901,7 +6971,7 @@ function dnoteState(upto = moveLog.length) {
     if (m.color === by) cnt++;
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
-      else if (['d4c', 'punch', 'gpromote', 'bombset'].includes(m.special)) { /* nothing moved */ }
+      else if (['d4c', 'punch', 'gpromote', 'bombset', 'clone'].includes(m.special)) { /* nothing moved */ }
       else if (m.to === t || m.from === t) t = null;
       continue;
     }
@@ -7107,6 +7177,62 @@ async function sawTurn(myGen) {
     hits: s.cut.map(x => x.sq + ':k').join(','), san: '⚔R' + s.from + 'x' + s.cut.map(x => x.sq).join('x') }, (pick('sawAfter') || (() => ''))(s.cut.length));
 }
 
+/* ---------------- Naruto: Shadow Clone ---------------- */
+// Twice a game, instead of a move, a copy of one of his pawns appears on any empty square on that
+// pawn's row. It can't leave a position where he's put the other king in instant checkmate.
+let cloneBy = { w: 0, b: 0 };
+function cloneSquares(c, pawnSq) {
+  const F = 'abcdefgh', rank = pawnSq[1], out = [];
+  for (const f of F) {
+    const s = f + rank;
+    if (game.get(s)) continue;
+    game.put({ type: 'p', color: c }, s);
+    const fen = passFen(c);
+    game.remove(s);
+    const g = new Chess();
+    if (!g.load(fen) || kingAttacked(fen, c) || g.in_checkmate()) continue;
+    out.push(s);
+  }
+  return out;
+}
+function cloneOptions(c) {
+  return piecesOf(c, pc => pc.type === 'p').map(x => ({ from: x.sq, to: cloneSquares(c, x.sq) })).filter(x => x.to.length);
+}
+function canClone() {
+  if (BOT().ability !== 'clone' || !abilityOn() || isOver() || game.in_check()) return false;
+  const c = botColor, n = botMoveCount();
+  if (n < 6 || (cloneBy[c] || 0) >= 2) return false;
+  let last = -99, k = 0;
+  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'clone' && m.color === c) last = k; }
+  if (n - last < 6) return false;
+  if (!cloneOptions(c).length) return false;
+  return n >= 30 || Math.random() < 0.15;
+}
+async function cloneTurn(myGen) {
+  const c = botColor, list = cloneOptions(c);
+  if (!list.length) return;
+  // He likes cloning his most advanced pawn.
+  const adv = s => (c === 'w' ? +s[1] : 9 - +s[1]);
+  const top = Math.max(...list.map(x => adv(x.from)));
+  const pickP = rand(list.filter(x => adv(x.from) === top));
+  const to = rand(pickP.to);
+  cloneBy[c] = (cloneBy[c] || 0) + 1;
+  thinking = true;
+  updateStatus(); renderControls();
+  say(pick('clone'));
+  Sound.play('poof');
+  squareFx(pickP.from, 'clonefx');
+  await new Promise(r => setTimeout(r, 500));
+  if (myGen !== gen) return;
+  smokeFx(to);
+  squareFx(to, 'clonefx');
+  await new Promise(r => setTimeout(r, 650));
+  if (myGen !== gen) return;
+  game.put({ type: 'p', color: c }, to);
+  await finishSpecial(myGen, c, { from: pickP.from, to, piece: 'p', special: 'clone', verb: 'clones',
+    san: '⚇' + pickP.from + '>' + to }, pick('cloneAfter'));
+}
+
 /* ---------------- Owen: Pawn Rush ---------------- */
 let rushBy = { w: 0, b: 0 };
 // Steps each pawn forward one square (front pawns first). If an enemy piece is straight ahead it
@@ -7191,6 +7317,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
+  b_clone: { name: 'Shadow Clone (Naruto)', bot: true, desc: 'Twice a game: tap one of your pawns, then any empty square on its row, and a copy of the pawn appears there.' },
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures one of the bot\u2019s own knights, bishops or pawns (never a rook, queen or king, and never into check). Not in your first 15 moves, 10 moves between whispers.' },
@@ -7204,7 +7331,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 3, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_clone: 2, b_saw: 1, b_dnote: 1, b_whisper: 2, b_bomb: 3, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -7273,7 +7400,7 @@ async function blunderTurn(myGen) {
 /* ---------------- Jotaro's time stop ---------------- */
 let timeStopped = false, tsBy = { w: 0, b: 0 }, tsLast = { w: -99, b: -99 }, tsMax = { w: 3, b: 3 };
 function resetTimeStop() {
-  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; dnBy = { w: 0, b: 0 }; whisperBy = { w: 0, b: 0 }; sawBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
+  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; dnBy = { w: 0, b: 0 }; whisperBy = { w: 0, b: 0 }; sawBy = { w: 0, b: 0 }; cloneBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
   gproMax = { w: Math.random() < 0.12 ? 2 : 1, b: Math.random() < 0.12 ? 2 : 1 };
   forceBy = { w: 0, b: 0 }; illBy = { w: 0, b: 0 }; illusion = null; owenTarget = null;
   resetPower();
@@ -8092,6 +8219,7 @@ function buildPGN() {
   const tok = k => (slots[k] === -1 ? '--' : h[slots[k]].asc
     ? (h[slots[k]].special === 'rush' ? `-- {${sideName(h[slots[k]].color)} pushes ${h[slots[k]].count || 'several'} pawns forward at once${h[slots[k]].took ? ', taking ' + h[slots[k]].took : ''}}`
       : h[slots[k]].special === 'swap' ? `-- {${sideName(h[slots[k]].color)} swaps the pieces on ${h[slots[k]].from} and ${h[slots[k]].to}}`
+      : h[slots[k]].special === 'clone' ? `-- {${sideName(h[slots[k]].color)} clones the pawn on ${h[slots[k]].from} onto ${h[slots[k]].to}}`
       : h[slots[k]].special === 'saw' ? `-- {${sideName(h[slots[k]].color)} chainsaws from ${h[slots[k]].from} through ${(h[slots[k]].hits || '').split(',').map(x => x.split(':')[0]).join(' and ')}}`
       : h[slots[k]].special === 'whisper' ? `-- {${sideName(h[slots[k]].color)} whispers: the piece on ${h[slots[k]].from} takes its own ${PIECE_WORD[h[slots[k]].captured]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'roll' ? `-- {${sideName(h[slots[k]].color)} rolls the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}}`
@@ -8724,6 +8852,7 @@ const Sound = {
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
       }
+      else if (kind === 'poof') { this.crunch(t, 0.18, 0.18, 8); this.sweep(t, 300, 2400, 0.3, 0.2, 1.5); this.tone(t + 0.12, 1320, 0.05, 0.2, 'sine'); }
       else if (kind === 'chainsaw') {
         for (let i = 0; i < 18; i++) this.tone(t + i * 0.05, 90 + (i % 3) * 18 + i * 4, 0.05, 0.06, 'sawtooth');
         this.crunch(t, 0.9, 0.12, 3);
@@ -9570,7 +9699,7 @@ function restore(data) {
     }
   } else return false;
   resetTimeStop();
-  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.dnote) dnBy[m.color] = (dnBy[m.color] || 0) + 1; if (m.special === 'whisper') whisperBy[m.color] = (whisperBy[m.color] || 0) + 1; if (m.special === 'saw') sawBy[m.color] = (sawBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
+  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.dnote) dnBy[m.color] = (dnBy[m.color] || 0) + 1; if (m.special === 'whisper') whisperBy[m.color] = (whisperBy[m.color] || 0) + 1; if (m.special === 'saw') sawBy[m.color] = (sawBy[m.color] || 0) + 1; if (m.special === 'clone') cloneBy[m.color] = (cloneBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
   playerColor = s.playerColor === 'b' ? 'b' : 'w';
   botColor = other(playerColor);
   sideChoice = ['w', 'b', 'r'].includes(s.sideChoice) ? s.sideChoice : playerColor;
