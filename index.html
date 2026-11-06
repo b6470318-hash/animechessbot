@@ -1392,7 +1392,7 @@ BOTS.denji = {
 };
 BOTS.naruto = {
   name: 'Naruto', crest: '\u265F', statLabel: 'Captures', quiet: false, style: 'chaos', ability: 'clone', pace: 0.7,
-  tag: 'Loud, reckless, and never gives up. Twice a game, Shadow Clone copies one of his pawns onto any empty square on that pawn\u2019s row.',
+  tag: 'Loud, reckless, and never gives up. Twice a game, Shadow Clone copies one of his pawns onto any empty square on that pawn\u2019s row. 6 moves between clones, 12 in the endgame.',
   // A bit under Owen (0.74, depth 5): a lot of loose moves.
   chaos: { good: 0.66, greedy: 0.55, depth: 4 },
   levels: [
@@ -7195,6 +7195,13 @@ function cloneSquares(c, pawnSq) {
   }
   return out;
 }
+// Moves to wait between clones: 6 normally, 12 in the endgame (clones are much stronger there).
+function cloneGap() { return isEndgame() ? 12 : 6; }
+function cloneCooldown(c) {
+  let last = -99, k = 0;
+  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'clone' && m.color === c) last = k; }
+  return Math.max(0, cloneGap() - (k - last));
+}
 function cloneOptions(c) {
   return piecesOf(c, pc => pc.type === 'p').map(x => ({ from: x.sq, to: cloneSquares(c, x.sq) })).filter(x => x.to.length);
 }
@@ -7202,9 +7209,7 @@ function canClone() {
   if (BOT().ability !== 'clone' || !abilityOn() || isOver() || game.in_check()) return false;
   const c = botColor, n = botMoveCount();
   if (n < 6 || (cloneBy[c] || 0) >= 2) return false;
-  let last = -99, k = 0;
-  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'clone' && m.color === c) last = k; }
-  if (n - last < 6) return false;
+  if (cloneCooldown(c) > 0) return false;
   if (!cloneOptions(c).length) return false;
   return n >= 30 || Math.random() < 0.15;
 }
@@ -7317,7 +7322,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
-  b_clone: { name: 'Shadow Clone (Naruto)', bot: true, desc: 'Twice a game: tap one of your pawns, then any empty square on its row, and a copy of the pawn appears there.' },
+  b_clone: { name: 'Shadow Clone (Naruto)', bot: true, desc: 'Twice a game: tap one of your pawns, then any empty square on its row, and a copy of the pawn appears there. 6 moves between clones, 12 in the endgame.' },
   b_saw: { name: 'Chainsaw (Denji)', bot: true, desc: 'Once a game: tap one of your rooks and it rips along a line through up to two bot pieces (never a king or queen), landing on the last one.' },
   b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
   b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures one of the bot\u2019s own knights, bishops or pawns (never a rook, queen or king, and never into check). Not in your first 15 moves, 10 moves between whispers.' },
@@ -8083,6 +8088,7 @@ $('powerBtn').onclick = () => {
   if (t === 'shield' || t === 'swap' || t === 'b_gpro') { powerPick = t; swapFirst = null; selected = null; render(); renderControls(); return; }
   if (game.in_check() && t !== 'b_illusion') { statusFlash('You\u2019re in check. Deal with that first.'); return; }
   if (TARGETED.has(t)) {
+    if (t === 'b_clone' && cloneCooldown(playerColor) > 0) { const k = cloneCooldown(playerColor); statusFlash(`Shadow Clone is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}${isEndgame() ? ' (longer in the endgame)' : ''}.`); return; }
     if (t === 'b_whisper') {
       const mine = moveLog.filter(m => m.color === playerColor);
       let last = -99; mine.forEach((m, i) => { if (m.special === 'whisper') last = i + 1; });
