@@ -1229,10 +1229,11 @@ BOTS.mista = {
 };
 BOTS.hakari = {
   name: 'Hakari', crest: '\u265B', statLabel: 'Captures', quiet: false, style: 'plain', ability: 'gamble',
-  tag: 'A gambler who lives for the jackpot. Three times a game he rolls one of his pieces (even his queen): it might upgrade (a queen on a 777), stay the same, or get worse.',
-  // Stockfish skill 1 is about 1490; his rolls can win or lose material.
+  tag: 'A gambler who lives for the jackpot. Every 5 moves he can roll one of his pieces (even his queen): it might upgrade (a queen on a 777), stay the same, or get worse.',
+  // Labeled 777 for the joke. He's Stockfish skill 0 like Gojo and Sukuna, but searching shallower,
+  // so a little weaker than them; endless rolls make him swingy.
   levels: [
-    { elo: 1500, skill: 1, depth: 8, time: 1200 }
+    { elo: 777, skill: 0, depth: 7, time: 900 }
   ],
   crestPiece: 'bq',
   palette: { '--ink': '#0c0f0b', '--glow': '#161d14', '--panel': '#12170f', '--rule': '#2b3624', '--text': '#f2f6ec',
@@ -3587,7 +3588,7 @@ const LINES_HAKARI = {
   hint: ["A tip from the dealer."],
   reviewClean: ["No blunders. You play the odds well."],
   reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Bad bets.`],
-  // Idle Gamble: three times a game he rolls one of his pieces.
+  // Idle Gamble: every 5 moves he can roll one of his pieces.
   roll: ["Let's roll the dice on this one.", "Spin it! Come on, come on..."],
   rollNone: ["Nothing. Again. Next one hits.", "A miss. That's gambling."],
   rollDown: ["Ugh, it went down. That's the risk.", "Bad roll. Doesn't matter."],
@@ -5235,7 +5236,8 @@ function renderPower() {
     power.armed ? ({ reflect: 'Reflect is armed', double: 'Double move armed: make your first move', b_timestop: 'Time stop armed: make your first move',
       b_blunder: 'Forced Blunder armed: it fires on the bot\u2019s next move', b_project: 'Projection armed: make your first move', b_forceline: 'Armed: you\u2019ll pick the bot\u2019s next move' })[power.type] :
     power.type === 'undo' ? 'Use Undo token: take back your last move' :
-    `Use ${P.name.replace(/ \(.*\)$/, '')}` + (power.left > 1 ? ` (${power.left} left)` : '');
+    power.type === 'b_roll' && rollCooldown(playerColor) > 0 ? `Idle Gamble: ready in ${rollCooldown(playerColor)} move${rollCooldown(playerColor) > 1 ? 's' : ''}` :
+    `Use ${P.name.replace(/ \(.*\)$/, '')}` + (power.left > 1 && power.left < 100 ? ` (${power.left} left)` : '');
 }
 function powerUndo() {
   let k = -1;
@@ -6112,7 +6114,7 @@ async function shotTurn(myGen) {
 }
 
 /* ---------------- Hakari: Idle Gamble ---------------- */
-// Three times a game, instead of a move, he rolls one of his own pawns, knights, bishops or rooks.
+// As often as he likes (5 moves apart), instead of a move, he rolls one of his own pieces (not the king).
 // Pawn: 69% nothing, 20% bishop or knight, 10% rook, 1% queen.
 // Queen: 70% nothing, 15% an extra bishop or knight appears next to her, 15% she's lost.
 // Bishop/knight: 30% down to a pawn, 40% nothing, 20% rook, 10% queen.
@@ -6177,14 +6179,18 @@ function rollSan(type, sq, out, res) {
   return '⚄' + L(type) + sq + (res.after !== type ? '=' + res.after.toUpperCase() : '');
 }
 const rollable = c => piecesOf(c, pc => 'pnbrq'.includes(pc.type));
+// How many more of c's own moves before another roll is allowed (0 = ready).
+function rollCooldown(c) {
+  let last = -99, k = 0;
+  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'roll' && m.color === c) last = k; }
+  return Math.max(0, 5 - (k - last));
+}
 function canRoll() {
   if (BOT().ability !== 'gamble' || !abilityOn() || isOver() || game.in_check()) return false;
   const c = botColor, n = botMoveCount();
-  if (n < 4 || (rollBy[c] || 0) >= 3 || !rollable(c).length) return false;
-  let last = -99, k = 0;
-  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'roll' && m.color === c) last = k; }
-  if (n - last < 4) return false;
-  return n >= 30 || Math.random() < 0.18;
+  // No limit on rolls, just a 5-move cooldown between them.
+  if (n < 4 || !rollable(c).length || rollCooldown(c) > 0) return false;
+  return Math.random() < 0.3;
 }
 // The slot machine. Reels spin, stop one by one, and land on symbols that match the result.
 const ROLL_GLYPH = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛' };
@@ -6342,7 +6348,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
-  b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: '3 rolls a game: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse. Gambling your queen can win an extra piece or lose her.' },
+  b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse. Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
   b_punch: { name: 'Boxing (Colton)', bot: true, desc: '3 punches a game: two knock out one of the bot\u2019s bishops or knights (the first takes half its health), and the last one can only take a pawn.' },
@@ -6351,7 +6357,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_roll: 3, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -7040,6 +7046,7 @@ $('powerBtn').onclick = () => {
   if (t === 'shield' || t === 'swap' || t === 'b_gpro') { powerPick = t; swapFirst = null; selected = null; render(); renderControls(); return; }
   if (game.in_check() && t !== 'b_illusion') { statusFlash('You\u2019re in check. Deal with that first.'); return; }
   if (TARGETED.has(t)) {
+    if (t === 'b_roll' && rollCooldown(playerColor) > 0) { const k = rollCooldown(playerColor); statusFlash(`The slot machine is cooling down. Ready in ${k} more move${k > 1 ? 's' : ''}.`); return; }
     if (!powerTargets(t).length) {
       statusFlash(t === 'b_aura' || t === 'b_purple' || t === 'b_shrine' ? 'None of the bot\u2019s pieces that can be hit have moved yet.'
         : t === 'b_slash' ? 'No clean swing right now: every line hits your own piece, a queen or a king first.' : 'Nothing to hit with that right now.');
