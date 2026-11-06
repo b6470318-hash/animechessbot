@@ -565,6 +565,12 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .rollfx{border-radius:12%;box-shadow:inset 0 0 0 3px #e2b33c, 0 0 14px rgba(226,179,60,.8);animation:rollfx 1.4s ease-in-out 2}
 @keyframes rollfx{0%,100%{opacity:.4}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.slot,.slot .reel.stop,.slot.t-rook,.slot.t-queen,.jackpot,.board.jackflash{animation:none}}
+.sq.bombed::before{content:"\1F4A3";position:absolute;right:4%;top:2%;font-size:calc(var(--sq) * .28);line-height:1;z-index:5;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.boomfx{border-radius:50%;background:radial-gradient(circle, #fff 0%, #ffd27a 25%, #ff6a3d 50%, rgba(120,20,20,.6) 68%, transparent 75%);animation:boomfx .8s ease-out forwards}
+@keyframes boomfx{0%{opacity:1;transform:scale(.2)}50%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(2)}}
+.board.boomshake{animation:boomshake .6s ease-out}
+@keyframes boomshake{0%,100%{transform:none}15%{transform:translate(-1.2%,.8%)}30%{transform:translate(1.2%,-.8%)}45%{transform:translate(-.8%,.5%)}60%{transform:translate(.6%,-.3%)}}
+@media (prefers-reduced-motion:reduce){.board.boomshake{animation:none}}
 .shotline{position:absolute;z-index:7;pointer-events:none;transform-origin:0 50%;height:3px;margin-top:-1.5px;border-radius:999px;
   background:linear-gradient(90deg, rgba(226,179,60,0), rgba(255,230,150,.95) 70%, #fff);box-shadow:0 0 8px rgba(226,179,60,.8);animation:shotline .8s ease-out forwards}
 @keyframes shotline{0%{opacity:0;clip-path:inset(0 100% 0 0)}25%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
@@ -1250,6 +1256,18 @@ BOTS.hakari = {
     '--muted': '#a6b09a', '--gold': '#7fe08a', '--gold-ink': '#06200b', '--graph-bg': '#12170f' },
   card: { bg: '#12170f', rule: '#2b3624', text: '#f2f6ec', muted: '#a6b09a', accent: '#7fe08a', ink: '#06200b' }
 };
+BOTS.kira = {
+  name: 'Kira', crest: '\u265A', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'bomb',
+  tag: 'He only wants a quiet life. Twice a game, Killer Queen secretly turns one of your pieces into a bomb. Move it and it explodes, taking your pieces next to it.',
+  // Stockfish skill 4 is about 1790; the bombs bring him to about 1900.
+  levels: [
+    { elo: 1900, skill: 4, depth: 12, time: 2000 }
+  ],
+  crestPiece: 'bk',
+  palette: { '--ink': '#100b12', '--glow': '#1d1322', '--panel': '#170f1b', '--rule': '#352638', '--text': '#f7eef8',
+    '--muted': '#b7a2ba', '--gold': '#d28be8', '--gold-ink': '#220a2b', '--graph-bg': '#170f1b' },
+  card: { bg: '#170f1b', rule: '#352638', text: '#f7eef8', muted: '#b7a2ba', accent: '#d28be8', ink: '#220a2b' }
+};
 let botId = 'lelouch', nextBotId = 'lelouch';
 // Bot vs bot: which bot and level plays each color, and whether they play at human pace.
 let watchMode = false, watchFast = false;
@@ -1257,7 +1275,7 @@ let sideBot = { w: 'lelouch', b: 'ayanokoji' }, sideLevel = { w: 0, b: 0 };
 let prevBy = { w: null, b: null }, annBy = { w: {}, b: {} };
 const levelIdxBy = { lelouch: 0, ayanokoji: 0 };
 // Special powers can be switched off per bot from its card on the Opponents screen.
-const ABILITY_NAMES = { hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
+const ABILITY_NAMES = { kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
 const abilitiesOn = {};
 const abilityOn = () => abilitiesOn[botId] !== false;
 const BOT = () => BOTS[botId];
@@ -3607,6 +3625,46 @@ const LINES_HAKARI = {
   rollQueen: ["777! JACKPOT! A QUEEN!", "JACKPOT! Now I'm unstoppable!"]
 };
 BOTS.hakari.lines = LINES_HAKARI;
+const LINES_KIRA = {
+  greetWhite: ["I'll begin. Let's keep this calm and quiet.", "A peaceful game. That's all I ask."],
+  greetBlack: ["After you. I'm in no hurry.", "Go ahead. I prefer to wait."],
+  restore: ["You're back. Let's finish this quietly."],
+  kingMarch: ["My king takes a quiet walk."],
+  kingActive: ["Even a king needs a little exercise."],
+  check: ["Check.", "Check. Please don't make a scene."],
+  capture: ["That one's gone. Quietly.", "Taken.", "Neat and tidy."],
+  blunder: ["Careless. I'll clean that up.", "You left that out. I'll take it."],
+  strong: ["A good move. How annoying.", "Hm. You're better than I hoped."],
+  winning: ["Everything is calm. Just how I like it."],
+  losing: ["You're disturbing my peace.", "This is becoming stressful. I don't like stress."],
+  mate: [n => `Mate in ${n}. Let's end this quietly.`],
+  playerCheck: ["Check? How rude.", "Please. I just want a peaceful game."],
+  ambient: ["I'd like to finish this without any trouble.", "A quiet game. A quiet life.", "Take your time. Don't rush on my account.", "I sleep well every night. Do you?"],
+  botWins: ["Checkmate. Now I can rest easy.", "Checkmate. Quiet, clean, done."],
+  playerWins: ["...You beat me. How irritating.", "Checkmate. My peaceful day is ruined."],
+  draw: ["A draw. No one stands out. Perfect."],
+  resign: ["You're giving up? Good. Less trouble for both of us."],
+  undo: ["What's done is done.", "There's no taking that back."],
+  playerFlag: ["Out of time. A shame."],
+  botFlag: ["My clock ran out? How unpleasant."],
+  botPromote: ["A new queen. Very tidy."],
+  playerPromote: ["A new queen. Troublesome."],
+  queenTaken: ["Your queen. Removed."],
+  queenLost: ["My queen... this is getting stressful."],
+  queenBlunder: ["...I wasn't careful there."],
+  playerCastle: ["Tucking your king away. Sensible."],
+  playerKing: ["Your king is wandering. Unwise."],
+  sacrifice: ["Go on, take it.", "It's yours. If you dare."],
+  endgame: ["The endgame. Nearly done now."],
+  longGame: ["This is taking a while. I'd like to get home."],
+  hint: ["A small hint. Don't tell anyone."],
+  reviewClean: ["No blunders. Respectable."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Messy.`],
+  // Killer Queen: twice a game he secretly turns one of your pieces into a bomb.
+  bomb: ["Killer Queen has already touched something of yours.", "One of your pieces is a little different now. Which one, I wonder."],
+  boom: ["Ah. You touched it.", "Click. That's the end of that."]
+};
+BOTS.kira.lines = LINES_KIRA;
 BOTS.yuta.lines = LINES_YUTA;
 const lastPicked = {};
 function pick(cat) {
@@ -4511,6 +4569,8 @@ async function botTurn() {
     const pm = game.moves({ verbose: true }).find(x => uciOf(x) === res.reply);
     if (pm) { joPredict = { uci: res.reply }; say((pick('predict') || (() => ''))(pm.san)); }
   }
+  if (checkBomb(mv)) { render(); renderMoves(); renderStats(); save(); }
+  if (BOT().ability === 'bomb' && canPlantBomb(mv)) plantBomb(mv);
   if (timeStopped) endTimeStop();
   else if (canTimeStop(mv)) { startTimeStop(myGen); return; }
   if (projecting) { projecting = false; projTrailFx(mv); Sound.play('projtrail'); say(pick('projectAfter')); }
@@ -5396,8 +5456,9 @@ function powerPickSquare(sq) {
 
 /* ---------------- Your copies of the bots' abilities ---------------- */
 // Abilities where you tap the piece it hits.
-const TARGETED = new Set(['b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
+const TARGETED = new Set(['b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
+  b_bomb: 'Tap a bot piece to turn into a bomb',
   b_roll: 'Tap one of your pieces to roll (not your king)',
   b_pistols: 'Tap a bot piece your pieces can see to shoot',
   b_d4c: 'Tap a piece to copy (not a queen or a king)',
@@ -5420,6 +5481,7 @@ function powerTargets(type) {
     const minors = pieces.filter(x => x.type !== 'p');
     return (minors.length ? minors : pieces).map(sq);
   }
+  if (type === 'b_bomb') return bombState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
   if (type === 'b_roll') return rollable(c).map(x => x.sq);
   if (type === 'b_pistols') return pistolShots(c).map(x => x.sq);
   if (type === 'b_d4c') return [...new Set(d4cOptions(c).filter(o => d4cFen(c, o)).map(o => o.from))];
@@ -5477,6 +5539,15 @@ async function castPlayer(type, pick, pick2) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
   const busy = () => { thinking = true; updateStatus(); renderControls(); };
   const done = () => { thinking = false; };
+  if (type === 'b_bomb') {
+    const pc = game.get(pick);
+    if (!pc || pc.color !== opp) return;
+    spendPower(); busy(); Sound.play('kqclick'); squareFx(pick, 'swapfx');
+    await wait(700); if (myGen !== gen) return; done();
+    playerFinish({ from: pick, to: pick, piece: pc.type, special: 'bombset', verb: 'plants a bomb on', bomb: pick, san: '\u2735' + L(pc.type) + pick },
+      `Killer Queen has touched the bot's ${PIECE_WORD[pc.type]} on ${pick}. If it moves, it explodes.`);
+    return;
+  }
   if (type === 'b_roll') {
     const pc = game.get(pick);
     if (!pc || pc.color !== c || !'pnbrq'.includes(pc.type)) return;
@@ -6302,6 +6373,107 @@ async function rollTurn(myGen) {
     san: rollSan(pickP.type, pickP.sq, out, res) }, say2);
 }
 
+/* ---------------- Kira: Killer Queen ---------------- */
+// Twice a game, right after one of his moves (it doesn't cost him a turn), he secretly turns one of
+// the other side's pieces (not the king or queen) into a bomb. Nobody is told which. When that piece
+// moves, it explodes: it and that side's pieces next to where it landed are destroyed (never a king
+// or queen). One bomb at a time. The bomb is recorded on the planting move as `bomb`, and the
+// explosion on the move that set it off as `boom`.
+let bombBy = { w: 0, b: 0 };
+// The live bomb before log entry `upto`: { sq, v } (v = the side it belongs to), or null.
+function bombState(upto = moveLog.length) {
+  let t = null, v = null;
+  for (let i = 0; i < upto; i++) {
+    const m = moveLog[i];
+    if (m.bomb) { t = m.bomb; v = other(m.color); continue; }
+    if (!t) continue;
+    if (m.boom) { t = null; continue; }
+    if (m.asc) {
+      if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
+      else if (['d4c', 'punch', 'gpromote'].includes(m.special)) { /* nothing moved */ }
+      else if (m.to === t || m.from === t) t = null;
+      continue;
+    }
+    if (m.color === v) {
+      if (m.from === t) t = null;   // it moved (and went off)
+      const rank = v === 'w' ? '1' : '8';
+      if (m.flags && m.flags.includes('k') && t === 'h' + rank) t = 'f' + rank;
+      if (m.flags && m.flags.includes('q') && t === 'a' + rank) t = 'd' + rank;
+    } else if (m.to === t) t = null;  // captured
+  }
+  return t ? { sq: t, v } : null;
+}
+function canPlantBomb(mv) {
+  if (BOT().ability !== 'bomb' || !abilityOn() || isOver() || bombState()) return false;
+  const c = mv.color, n = botMoveCount();
+  if (n < 5 || (bombBy[c] || 0) >= 2) return false;
+  if (!piecesOf(other(c), pc => 'pnbr'.includes(pc.type)).length) return false;
+  return n >= 26 || Math.random() < 0.2;
+}
+// He picks a piece with lots of its friends around it, for a bigger blast.
+function plantBomb(mv) {
+  const c = mv.color, v = other(c), F = 'abcdefgh';
+  const list = piecesOf(v, pc => 'pnbr'.includes(pc.type)).map(x => {
+    const f0 = F.indexOf(x.sq[0]), r0 = +x.sq[1];
+    let near = 0;
+    for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
+      if (!df && !dr) continue;
+      const f = f0 + df, r = r0 + dr;
+      if (f < 0 || f > 7 || r < 1 || r > 8) continue;
+      const pc = game.get(F[f] + r);
+      if (pc && pc.color === v && pc.type !== 'k' && pc.type !== 'q') near++;
+    }
+    return Object.assign(x, { near });
+  }).sort((a, b) => b.near - a.near);
+  const t = rand(list.slice(0, 3));
+  mv.bomb = t.sq;
+  bombBy[c] = (bombBy[c] || 0) + 1;
+  save();
+  say(pick('bomb'));
+  Sound.play('kqclick');
+  // Only show where it is when you're watching two bots (it's never your own piece then).
+  if (watchMode) render();
+}
+// If this move moved the bomb, blow it up. Call right after the move is in the log.
+function checkBomb(mv) {
+  const b = bombState(moveLog.length - 1);
+  if (!b || mv.color !== b.v || mv.from !== b.sq) return false;
+  const v = b.v, at = mv.to, F = 'abcdefgh', f0 = F.indexOf(at[0]), r0 = +at[1];
+  const cands = [at];
+  for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) {
+    if (!df && !dr) continue;
+    const f = f0 + df, r = r0 + dr;
+    if (f < 0 || f > 7 || r < 1 || r > 8) continue;
+    const pc = game.get(F[f] + r);
+    if (pc && pc.color === v && pc.type !== 'k' && pc.type !== 'q') cands.push(F[f] + r);
+  }
+  const gone = [];
+  for (const sq of cands) {
+    const saved = game.get(sq);
+    if (!saved || saved.type === 'k') continue;
+    game.remove(sq);
+    // Never leave that side's king open to capture.
+    if (kingAttacked(game.fen(), v)) { game.put(saved, sq); continue; }
+    gone.push(sq);
+  }
+  const parts = game.fen().split(' ');
+  parts[2] = fixCastling(parts[2]); parts[3] = '-';
+  const f = parts.join(' ');
+  game = new Chess(f);
+  const last = moveLog[moveLog.length - 1];
+  last.fen = f; last.reset = true; last.boom = gone.join(',') || at;
+  bombFx(at, gone);
+  Sound.play('boom');
+  statusFlash(`Killer Queen! The ${mv.color === playerColor && !watchMode ? 'piece you moved was a bomb' : 'bomb went off'}: ${gone.length} piece${gone.length === 1 ? '' : 's'} destroyed.`);
+  return true;
+}
+function bombFx(at, gone) {
+  if (reduceMotion) return;
+  boardEl.classList.remove('boomshake'); void boardEl.offsetWidth; boardEl.classList.add('boomshake');
+  setTimeout(() => boardEl.classList.remove('boomshake'), 700);
+  for (const sq of gone.length ? gone : [at]) squareFx(sq, 'boomfx');
+}
+
 /* ---------------- Owen: Pawn Rush ---------------- */
 let rushBy = { w: 0, b: 0 };
 // Steps each pawn forward one square (front pawns first). If an enemy piece is straight ahead it
@@ -6386,6 +6558,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
+  b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
@@ -6395,7 +6568,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -6464,7 +6637,7 @@ async function blunderTurn(myGen) {
 /* ---------------- Jotaro's time stop ---------------- */
 let timeStopped = false, tsBy = { w: 0, b: 0 }, tsLast = { w: -99, b: -99 }, tsMax = { w: 3, b: 3 };
 function resetTimeStop() {
-  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
+  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
   gproMax = { w: Math.random() < 0.12 ? 2 : 1, b: Math.random() < 0.12 ? 2 : 1 };
   forceBy = { w: 0, b: 0 }; illBy = { w: 0, b: 0 }; illusion = null; owenTarget = null;
   resetPower();
@@ -6731,6 +6904,7 @@ function attemptMove(from, to) {
 }
 function afterPlayerMove(mv) {
   if (illusion && mv.color !== illusion.color) { revealIllusion(mv); return; }
+  if (checkBomb(mv)) { render(); renderMoves(); renderStats(); save(); if (game.game_over()) { if (game.in_checkmate()) fireworks(); endLines(); updateStatus(); renderControls(); return; } }
   if (shield && mv.from === shield.sq) shield.sq = mv.to;
   if (power && (power.type === 'double' || power.type === 'b_timestop' || power.type === 'b_project') && power.armed && !doubleSecond && !watchMode) {
     const f = flippedFen(playerColor);
@@ -7288,7 +7462,7 @@ function classify(h, evals, best, sacs, alt = []) {
   h.forEach((m, i) => { out.push(gradeOne(m, i)); });
   return out;
   function gradeOne(m, i) {
-    if (m.asc) { inBook = false; return { kind: 'best', acc: 100, color: m.color }; }
+    if (m.asc || m.boom) { inBook = false; return { kind: 'best', acc: 100, color: m.color }; }
     const sgn = m.color === 'w' ? 1 : -1;
     const before = winChance(clampCp(sgn * evals[i])), after = winChance(clampCp(sgn * evals[i + 1]));
     const drop = before - after;
@@ -7842,6 +8016,8 @@ const Sound = {
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
       }
+      else if (kind === 'kqclick') { this.knock(t, 2600, 0.35, 0.03); this.tone(t + 0.02, 1760, 0.04, 0.2, 'sine'); }
+      else if (kind === 'boom') { this.crunch(t, 0.35, 0.55, 6); this.knock(t, 70, 1, 0.6); this.sweep(t, 3000, 120, 0.7, 0.4, 0.8); this.glide(t + 0.05, 160, 40, 0.8, 0.5); }
       else if (kind === 'slottick') { this.knock(t, 2400, 0.25, 0.02); }
       else if (kind === 'slotstop') { this.knock(t, 700, 0.6, 0.06); this.knock(t + 0.01, 1900, 0.3, 0.03); }
       else if (kind === 'roll_none') { this.tone(t, 220, 0.07, 0.25, 'square'); this.tone(t + 0.18, 185, 0.07, 0.35, 'square'); }
@@ -8117,6 +8293,7 @@ function render(animateMv) {
   const targets = live && selected ? targetsFor(selected) : new Map();
   const chk = g.in_check() ? kingSquare(g.turn(), g) : null;
   const hurt = live ? [hurtSquare('w'), hurtSquare('b'), ...shotHurt('w'), ...shotHurt('b')] : [];
+  const bombNow = live ? bombState() : null;
   const ptg = new Set(live && (TARGETED.has(powerPick) || powerPick === 'b_forceline') ? powerTargets(powerPick) : []);
   let html = '';
   rIdx.forEach((r, ri) => fIdx.forEach((f, fi) => {
@@ -8128,6 +8305,7 @@ function render(animateMv) {
     if (live && shieldSq() === sq) cls.push('shield');
     if (live && (swapFirst === sq || forceFrom === sq)) cls.push('pick');
     if (live && ptg.has(sq)) cls.push('ptgt');
+    if (live && bombNow && bombNow.sq === sq && (watchMode || bombNow.v !== playerColor)) cls.push('bombed');
     if (live && selected === sq) cls.push('sel');
     if (live && premove && (premove.from === sq || premove.to === sq)) cls.push('pre');
     if (chk === sq) cls.push('chk');
@@ -8646,7 +8824,7 @@ function snapshotState() {
   return {
     v: 2, log: moveLog.map(m => ({ from: m.from, to: m.to, promotion: m.promotion, san: m.san, color: m.color, piece: m.piece,
       captured: m.captured, flags: m.flags, fen: m.fen, ts: m.ts || undefined, reset: m.reset || undefined, asc: m.asc || undefined,
-      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined, hits: m.hits || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
+      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined, hits: m.hits || undefined, bomb: m.bomb || undefined, boom: m.boom || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
     clock: clock ? { base: clock.base, inc: clock.inc, w: clockLeft('w'), b: clockLeft('b'), running: clock.turnStart != null } : null,
     prevBotScore, lastEvalWhite, lastDepth, announced: { ...announced }
   };
@@ -8675,7 +8853,7 @@ function restore(data) {
     }
   } else return false;
   resetTimeStop();
-  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
+  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
   playerColor = s.playerColor === 'b' ? 'b' : 'w';
   botColor = other(playerColor);
   sideChoice = ['w', 'b', 'r'].includes(s.sideChoice) ? s.sideChoice : playerColor;
