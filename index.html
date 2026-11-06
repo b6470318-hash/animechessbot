@@ -565,6 +565,12 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .rollfx{border-radius:12%;box-shadow:inset 0 0 0 3px #e2b33c, 0 0 14px rgba(226,179,60,.8);animation:rollfx 1.4s ease-in-out 2}
 @keyframes rollfx{0%,100%{opacity:.4}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.slot,.slot .reel.stop,.slot.t-rook,.slot.t-queen,.jackpot,.board.jackflash{animation:none}}
+.sq .dnmark{position:absolute;left:4%;top:4%;z-index:5;pointer-events:none;min-width:1.4em;height:1.4em;padding:0 .2em;border-radius:3px;
+  display:grid;place-items:center;font:700 calc(var(--sq) * .2)/1 var(--f-mono, monospace);background:#111;color:#ff5a5a;border:1px solid #ff5a5a;box-shadow:0 0 6px rgba(255,60,60,.6)}
+.dnfx{background:radial-gradient(circle, rgba(0,0,0,.85) 0%, rgba(120,0,0,.6) 45%, transparent 70%);animation:dnfx 1.4s ease-out forwards}
+@keyframes dnfx{0%{opacity:0;transform:scale(.5)}30%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.3)}}
+.whisperfx{border-radius:50%;background:radial-gradient(circle, rgba(220,230,255,.0) 30%, rgba(200,215,255,.55) 55%, transparent 72%);animation:whisperfx 1.5s ease-in-out forwards}
+@keyframes whisperfx{0%,100%{opacity:0}30%,70%{opacity:1}}
 .sq.bombed::before{content:"\1F4A3";position:absolute;right:4%;top:2%;font-size:calc(var(--sq) * .28);line-height:1;z-index:5;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
 .boomfx{border-radius:50%;background:radial-gradient(circle, #fff 0%, #ffd27a 25%, #ff6a3d 50%, rgba(120,20,20,.6) 68%, transparent 75%);animation:boomfx .8s ease-out forwards}
 @keyframes boomfx{0%{opacity:1;transform:scale(.2)}50%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(2)}}
@@ -969,7 +975,7 @@ const BOTS = {
     name: 'Lelouch', crest: '\u265A', statLabel: 'King steps', quiet: false,
     tag: 'A strategist at the board. His king leads the army, starting on move two.',
     levels: [
-      { elo: 2600, skill: 15, depth: 22, time: 5000 }
+      { elo: 2750, skill: 17, depth: 24, time: 5500 }
     ]
   },
   ayanokoji: {
@@ -1268,6 +1274,30 @@ BOTS.kira = {
     '--muted': '#b7a2ba', '--gold': '#d28be8', '--gold-ink': '#220a2b', '--graph-bg': '#170f1b' },
   card: { bg: '#170f1b', rule: '#352638', text: '#f7eef8', muted: '#b7a2ba', accent: '#d28be8', ink: '#220a2b' }
 };
+BOTS.light = {
+  name: 'Light', crest: '\u2654', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'dnote',
+  tag: 'A genius who thinks he\u2019s justice. Once a game he writes one of your pieces into the Death Note (not the king or queen). Three of his moves later, it\u2019s gone.',
+  // Stockfish skill 14 is about 2550; the Death Note brings him to about 2600.
+  levels: [
+    { elo: 2600, skill: 14, depth: 22, time: 5000 }
+  ],
+  crestPiece: 'wk',
+  palette: { '--ink': '#0d0d0f', '--glow': '#1a1a20', '--panel': '#141418', '--rule': '#2c2c34', '--text': '#f2f2f5',
+    '--muted': '#a3a3ad', '--gold': '#e04848', '--gold-ink': '#220606', '--graph-bg': '#141418' },
+  card: { bg: '#141418', rule: '#2c2c34', text: '#f2f2f5', muted: '#a3a3ad', accent: '#e04848', ink: '#220606' }
+};
+BOTS.johan = {
+  name: 'Johan', crest: '\u265E', statLabel: 'Captures', quiet: true, style: 'plain', ability: 'whisper',
+  tag: 'Calm, polite, and terrifying. Twice a game he whispers to one of your pieces, and it captures another of your own pieces.',
+  // Stockfish skill 15 is about 2620; Whisper brings him to about 2650.
+  levels: [
+    { elo: 2650, skill: 15, depth: 22, time: 5000 }
+  ],
+  crestPiece: 'bn',
+  palette: { '--ink': '#0b0d10', '--glow': '#141922', '--panel': '#10141b', '--rule': '#263041', '--text': '#eef2f8',
+    '--muted': '#9ea8b8', '--gold': '#d9e2f0', '--gold-ink': '#0a1220', '--graph-bg': '#10141b' },
+  card: { bg: '#10141b', rule: '#263041', text: '#eef2f8', muted: '#9ea8b8', accent: '#d9e2f0', ink: '#0a1220' }
+};
 let botId = 'lelouch', nextBotId = 'lelouch';
 // Bot vs bot: which bot and level plays each color, and whether they play at human pace.
 let watchMode = false, watchFast = false;
@@ -1275,7 +1305,7 @@ let sideBot = { w: 'lelouch', b: 'ayanokoji' }, sideLevel = { w: 0, b: 0 };
 let prevBy = { w: null, b: null }, annBy = { w: {}, b: {} };
 const levelIdxBy = { lelouch: 0, ayanokoji: 0 };
 // Special powers can be switched off per bot from its card on the Opponents screen.
-const ABILITY_NAMES = { kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
+const ABILITY_NAMES = { light: 'Death Note', johan: 'Whisper', kira: 'Killer Queen', hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
 const abilitiesOn = {};
 const abilityOn = () => abilitiesOn[botId] !== false;
 const BOT = () => BOTS[botId];
@@ -3665,6 +3695,86 @@ const LINES_KIRA = {
   boom: ["Ah. You touched it.", "Click. That's the end of that."]
 };
 BOTS.kira.lines = LINES_KIRA;
+const LINES_LIGHT = {
+  greetWhite: ["I'll move first. I already know how this ends.", "Let's begin. Try to keep up."],
+  greetBlack: ["Go ahead. Every move you make tells me something.", "Your move. I'm watching closely."],
+  restore: ["You came back. Interesting."],
+  kingMarch: ["A king who hides can't build a new world."],
+  kingActive: ["My king steps forward. Calmly."],
+  check: ["Check.", "Check. You didn't see that coming."],
+  capture: ["Removed.", "One less obstacle.", "That piece is gone."],
+  blunder: ["A careless mistake. I won't forget it.", "You slipped. I noticed."],
+  strong: ["Clever. Very clever.", "So you can think. Good."],
+  winning: ["Everything is going exactly the way I planned."],
+  losing: ["A small setback. I've already adjusted.", "You're sharper than I expected. That changes nothing."],
+  mate: [n => `Mate in ${n}. I wrote the ending already.`],
+  playerCheck: ["Check? Bold.", "You're testing me. I don't fail tests."],
+  ambient: ["Take your time. I'm already three moves ahead.", "Every piece has a name.", "I don't make mistakes. I make plans.", "Think carefully."],
+  botWins: ["Checkmate. It was decided long ago.", "Checkmate. I win. As planned."],
+  playerWins: ["...Impossible. You beat me.", "Checkmate. I underestimated you."],
+  draw: ["A draw. Unacceptable, but fine."],
+  resign: ["You're resigning? A logical choice."],
+  undo: ["What's written can't be erased.", "No going back."],
+  playerFlag: ["Your time is up."],
+  botFlag: ["My clock ran out? That wasn't part of the plan."],
+  botPromote: ["A new queen. Right on schedule."],
+  playerPromote: ["A new queen. I'll account for her."],
+  queenTaken: ["Your queen. Removed from the board."],
+  queenLost: ["My queen. A calculated loss."],
+  queenBlunder: ["...That wasn't supposed to happen."],
+  playerCastle: ["Hiding your king. Predictable."],
+  playerKing: ["Your king walks out. Brave, or foolish."],
+  sacrifice: ["Take it. I've already planned for that.", "Go on. It's part of the plan."],
+  endgame: ["The final chapter. I've written it already."],
+  longGame: ["A long game. Patience wins."],
+  hint: ["A hint. Don't get used to it."],
+  reviewClean: ["No blunders. Impressive."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Each one wrote your ending.`],
+  // Death Note: once a game he writes one of your pieces down. Three of his moves later, it's gone.
+  dnote: [p => `I've written your ${p}'s name. Three moves. That's all it has left.`, p => `Your ${p}... I've written it down.`],
+  dkill: [p => `Right on time. Your ${p} is gone.`, p => `Three moves. Your ${p}'s time is up.`]
+};
+const LINES_JOHAN = {
+  greetWhite: ["I'll begin. Don't be afraid.", "Let's play. I'm curious about you."],
+  greetBlack: ["Please, go first. I'd like to watch.", "Your move. Take your time."],
+  restore: ["You came back. I knew you would."],
+  kingMarch: ["My king isn't afraid of anything."],
+  kingActive: ["Walking forward. There's nothing to fear."],
+  check: ["Check.", "Check. Does that frighten you?"],
+  capture: ["Gone. Just like that.", "It didn't hurt.", "Taken."],
+  blunder: ["You left that alone. Why?", "A mistake. I'll take it gently."],
+  strong: ["A good move. I like you.", "Interesting. Very interesting."],
+  winning: ["Everything is quiet now. Isn't that nice?"],
+  losing: ["You're doing well. It won't last.", "Don't worry. It always ends the same."],
+  mate: [n => `Mate in ${n}. Don't be scared.`],
+  playerCheck: ["Check? How brave.", "You're trying so hard."],
+  ambient: ["Your pieces trust you. For now.", "Everyone listens if you speak softly enough.", "Take your time. I can wait.", "Are you sure your pieces are on your side?"],
+  botWins: ["Checkmate. It's over now. Rest.", "Checkmate. In the end, everything is the same."],
+  playerWins: ["...You won. How interesting.", "Checkmate. I'll remember you."],
+  draw: ["A draw. Neither of us is gone."],
+  resign: ["You're giving up? That's alright."],
+  undo: ["Nothing can be undone.", "What happened stays happened."],
+  playerFlag: ["Your time ran out."],
+  botFlag: ["My clock? How strange."],
+  botPromote: ["A new queen."],
+  playerPromote: ["A new queen. She'll listen to me too, eventually."],
+  queenTaken: ["Your queen. Gone."],
+  queenLost: ["My queen. It doesn't matter."],
+  queenBlunder: ["...Careless of me."],
+  playerCastle: ["Hiding? There's nowhere to hide."],
+  playerKing: ["Your king is walking alone."],
+  sacrifice: ["Take it. I want you to.", "Go ahead. It's a gift."],
+  endgame: ["Almost done now."],
+  longGame: ["A long game. I don't mind."],
+  hint: ["A hint, since I'm feeling kind."],
+  reviewClean: ["No blunders. You're careful."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Your pieces weren't listening to you.`],
+  // Whisper: twice a game one of your pieces is talked into capturing another of your pieces.
+  whisper: ["I only said a few words to it.", "Your pieces listen to me now."],
+  whisperAfter: [p => `Your own piece took your ${p}. How sad.`, p => `Your ${p} was betrayed.`]
+};
+BOTS.light.lines = LINES_LIGHT;
+BOTS.johan.lines = LINES_JOHAN;
 BOTS.yuta.lines = LINES_YUTA;
 const lastPicked = {};
 function pick(cat) {
@@ -4522,6 +4632,7 @@ async function botTurn() {
   if (canD4C()) { d4cTurn(myGen); return; }
   if (canShoot()) { shotTurn(myGen); return; }
   if (canRoll()) { rollTurn(myGen); return; }
+  if (canWhisper()) { whisperTurn(myGen); return; }
   thinking = true;
   updateStatus(); renderControls();
   const started = Date.now();
@@ -4570,6 +4681,8 @@ async function botTurn() {
     if (pm) { joPredict = { uci: res.reply }; say((pick('predict') || (() => ''))(pm.san)); }
   }
   if (checkBomb(mv)) { render(); renderMoves(); renderStats(); save(); }
+  if (checkDNote(mv)) { render(); renderMoves(); renderStats(); save(); }
+  if (BOT().ability === 'dnote' && canWriteNote(mv)) writeNote(mv);
   if (BOT().ability === 'bomb' && canPlantBomb(mv)) plantBomb(mv);
   if (timeStopped) endTimeStop();
   else if (canTimeStop(mv)) { startTimeStop(myGen); return; }
@@ -5456,8 +5569,10 @@ function powerPickSquare(sq) {
 
 /* ---------------- Your copies of the bots' abilities ---------------- */
 // Abilities where you tap the piece it hits.
-const TARGETED = new Set(['b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
+const TARGETED = new Set(['b_dnote', 'b_whisper', 'b_bomb', 'b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
+  b_dnote: 'Tap a bot piece to write in the Death Note',
+  b_whisper: 'Tap the bot piece to whisper to',
   b_bomb: 'Tap a bot piece to turn into a bomb',
   b_roll: 'Tap one of your pieces to roll (not your king)',
   b_pistols: 'Tap a bot piece your pieces can see to shoot',
@@ -5481,6 +5596,8 @@ function powerTargets(type) {
     const minors = pieces.filter(x => x.type !== 'p');
     return (minors.length ? minors : pieces).map(sq);
   }
+  if (type === 'b_dnote') return dnoteState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
+  if (type === 'b_whisper') return [...new Set(betrayals(c).map(x => x.from))];
   if (type === 'b_bomb') return bombState() ? [] : piecesOf(opp, pc => 'pnbr'.includes(pc.type)).map(x => x.sq);
   if (type === 'b_roll') return rollable(c).map(x => x.sq);
   if (type === 'b_pistols') return pistolShots(c).map(x => x.sq);
@@ -5539,6 +5656,30 @@ async function castPlayer(type, pick, pick2) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
   const busy = () => { thinking = true; updateStatus(); renderControls(); };
   const done = () => { thinking = false; };
+  if (type === 'b_dnote') {
+    const pc = game.get(pick);
+    if (!pc || pc.color !== opp) return;
+    spendPower(); busy(); Sound.play('dnote'); squareFx(pick, 'dnfx');
+    await wait(900); if (myGen !== gen) return; done();
+    playerFinish({ from: pick, to: pick, piece: pc.type, special: 'dnoteset', verb: 'writes down', dnote: pick, san: '\u270D' + L(pc.type) + pick },
+      `You wrote the bot's ${PIECE_WORD[pc.type]} in the Death Note. Three of your moves, and it's gone.`);
+    return;
+  }
+  if (type === 'b_whisper') {
+    const V = { r: 5, b: 3, n: 3, p: 1 };
+    const list = betrayals(c).filter(x => x.from === pick);
+    if (!list.length) return;
+    const top = Math.max(...list.map(x => V[x.victim]));
+    const b = rand(list.filter(x => V[x.victim] === top));
+    spendPower(); busy(); Sound.play('whisper'); whisperFx(b.from, b.to);
+    shapes = [{ from: b.from, to: b.to, color: 'r' }]; renderShapes();
+    await wait(1500); if (myGen !== gen) return; done();
+    shapes = [];
+    doBetrayal(c, b);
+    playerFinish({ from: b.from, to: b.to, piece: b.piece, captured: b.victim, special: 'whisper', verb: 'whispers', san: '\u2767' + (b.piece === 'p' ? b.from[0] : b.piece.toUpperCase()) + 'x' + b.to },
+      `Whisper: the bot's own piece took its ${PIECE_WORD[b.victim]}.`);
+    return;
+  }
   if (type === 'b_bomb') {
     const pc = game.get(pick);
     if (!pc || pc.color !== opp) return;
@@ -6390,10 +6531,11 @@ function bombState(upto = moveLog.length) {
     if (m.boom) { t = null; continue; }
     if (m.asc) {
       if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
-      else if (['d4c', 'punch', 'gpromote'].includes(m.special)) { /* nothing moved */ }
+      else if (['d4c', 'punch', 'gpromote', 'dnoteset'].includes(m.special)) { /* nothing moved */ }
       else if (m.to === t || m.from === t) t = null;
       continue;
     }
+    if (m.dkill === t) { t = null; continue; }
     if (m.color === v) {
       if (m.from === t) t = null;   // it moved (and went off)
       const rank = v === 'w' ? '1' : '8';
@@ -6472,6 +6614,143 @@ function bombFx(at, gone) {
   boardEl.classList.remove('boomshake'); void boardEl.offsetWidth; boardEl.classList.add('boomshake');
   setTimeout(() => boardEl.classList.remove('boomshake'), 700);
   for (const sq of gone.length ? gone : [at]) squareFx(sq, 'boomfx');
+}
+
+/* ---------------- Light: Death Note ---------------- */
+// Once a game, right after one of his moves (free), he writes down one of the other side's pieces
+// (not the king or queen). After three more of his moves, that piece is removed, wherever it went.
+// Writing is recorded as `dnote` on the move, the death as `dkill`.
+let dnBy = { w: 0, b: 0 };
+function dnoteState(upto = moveLog.length) {
+  let t = null, v = null, by = null, cnt = 0;
+  for (let i = 0; i < upto; i++) {
+    const m = moveLog[i];
+    if (m.dnote) { t = m.dnote; by = m.color; v = other(m.color); cnt = 0; continue; }
+    if (!t) continue;
+    if (m.dkill) { t = null; continue; }
+    if (m.color === by) cnt++;
+    if (m.asc) {
+      if (m.special === 'swap') { if (m.from === t) t = m.to; else if (m.to === t) t = m.from; }
+      else if (['d4c', 'punch', 'gpromote', 'bombset'].includes(m.special)) { /* nothing moved */ }
+      else if (m.to === t || m.from === t) t = null;
+      continue;
+    }
+    if (m.color === v) {
+      if (m.from === t) t = m.to;
+      const rank = v === 'w' ? '1' : '8';
+      if (m.flags && m.flags.includes('k') && t === 'h' + rank) t = 'f' + rank;
+      if (m.flags && m.flags.includes('q') && t === 'a' + rank) t = 'd' + rank;
+    } else if (m.to === t) t = null;
+    if (m.boom && t && m.boom.split(',').includes(t)) t = null;
+  }
+  if (!t) return null;
+  const pc = game.get(t);
+  return pc && pc.color === v && pc.type !== 'k' ? { sq: t, v, by, cnt } : null;
+}
+function canWriteNote(mv) {
+  if (BOT().ability !== 'dnote' || !abilityOn() || isOver() || dnoteState()) return false;
+  const c = mv.color, n = botMoveCount();
+  if (n < 6 || (dnBy[c] || 0) >= 1) return false;
+  return n >= 28 || Math.random() < 0.18;
+}
+// He writes down your most valuable rook, bishop or knight (a pawn if that's all there is).
+function writeNote(mv) {
+  const c = mv.color, v = other(c), V = { r: 5, b: 3, n: 3, p: 1 };
+  const list = piecesOf(v, pc => 'pnbr'.includes(pc.type));
+  if (!list.length) return;
+  const top = Math.max(...list.map(x => V[x.type]));
+  const t = rand(list.filter(x => V[x.type] === top));
+  mv.dnote = t.sq;
+  dnBy[c] = (dnBy[c] || 0) + 1;
+  save();
+  say((pick('dnote') || (() => ''))(PIECE_WORD[t.type]));
+  Sound.play('dnote');
+  squareFx(t.sq, 'dnfx');
+  render();
+}
+// After the writer's move: if this was the third move since writing, the piece dies (free).
+function checkDNote(mv) {
+  const d = dnoteState();
+  if (!d || d.by !== mv.color || d.cnt < 3) return false;
+  const tp = game.get(d.sq).type;
+  game.remove(d.sq);
+  const parts = game.fen().split(' ');
+  parts[2] = fixCastling(parts[2]); parts[3] = '-';
+  const f = parts.join(' ');
+  game = new Chess(f);
+  const last = moveLog[moveLog.length - 1];
+  last.fen = f; last.reset = true; last.dkill = d.sq;
+  squareFx(d.sq, 'dnfx');
+  Sound.play('dkill');
+  if (d.by === playerColor && !watchMode) statusFlash(`Death Note: the bot's ${PIECE_WORD[tp]} on ${d.sq} is gone.`);
+  else say((pick('dkill') || (() => ''))(PIECE_WORD[tp]));
+  return true;
+}
+
+/* ---------------- Johan: Whisper ---------------- */
+// Twice a game, instead of a move, one of the other side's pieces captures another of that side's
+// own pieces (never a king or queen as the victim, never the king as the traitor). The traitor
+// moves the way it normally could, as if its friend were an enemy.
+let whisperBy = { w: 0, b: 0 };
+function betrayals(c) {
+  const v = other(c), out = [];
+  const victims = piecesOf(v, pc => 'pnbr'.includes(pc.type));
+  for (const b of victims) {
+    const parts = game.fen().split(' ');
+    parts[1] = v; parts[3] = '-';
+    const g = new Chess();
+    if (!g.load(parts.join(' '))) continue;
+    g.remove(b.sq); g.put({ type: b.type, color: c }, b.sq);
+    for (const m of g.moves({ verbose: true })) {
+      if (m.to !== b.sq || !m.captured || m.piece === 'k' || m.promotion) continue;
+      // The result must be legal: neither king left capturable with the other side to move.
+      game.remove(m.from); game.remove(b.sq); game.put({ type: m.piece, color: v }, b.sq);
+      const f = passFen(c);
+      game.remove(b.sq); game.put({ type: m.piece, color: v }, m.from); game.put({ type: b.type, color: v }, b.sq);
+      if (kingAttacked(f, c)) continue;
+      out.push({ from: m.from, to: b.sq, piece: m.piece, victim: b.type });
+    }
+  }
+  return out;
+}
+function canWhisper() {
+  if (BOT().ability !== 'whisper' || !abilityOn() || isOver() || game.in_check()) return false;
+  const c = botColor, n = botMoveCount();
+  if (n < 8 || (whisperBy[c] || 0) >= 2) return false;
+  let last = -99, k = 0;
+  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'whisper' && m.color === c) last = k; }
+  if (n - last < 6) return false;
+  if (!betrayals(c).length) return false;
+  return n >= 30 || Math.random() < 0.16;
+}
+function doBetrayal(c, b) {
+  const v = other(c);
+  game.remove(b.from); game.remove(b.to);
+  game.put({ type: b.piece, color: v }, b.to);
+}
+function whisperFx(from, to) {
+  if (reduceMotion) return;
+  squareFx(from, 'whisperfx'); squareFx(to, 'whisperfx');
+}
+async function whisperTurn(myGen) {
+  const c = botColor, V = { r: 5, b: 3, n: 3, p: 1 };
+  const list = betrayals(c);
+  if (!list.length) return;
+  const top = Math.max(...list.map(x => V[x.victim]));
+  const b = rand(list.filter(x => V[x.victim] === top));
+  whisperBy[c] = (whisperBy[c] || 0) + 1;
+  thinking = true;
+  updateStatus(); renderControls();
+  say(pick('whisper'));
+  Sound.play('whisper');
+  whisperFx(b.from, b.to);
+  shapes = [{ from: b.from, to: b.to, color: 'r' }]; renderShapes();
+  await new Promise(r => setTimeout(r, 1500));
+  if (myGen !== gen) return;
+  shapes = [];
+  doBetrayal(c, b);
+  await finishSpecial(myGen, c, { from: b.from, to: b.to, piece: b.piece, captured: b.victim, special: 'whisper', verb: 'whispers',
+    san: '❧' + (b.piece === 'p' ? b.from[0] : b.piece.toUpperCase()) + 'x' + b.to }, (pick('whisperAfter') || (() => ''))(PIECE_WORD[b.victim]));
 }
 
 /* ---------------- Owen: Pawn Rush ---------------- */
@@ -6558,6 +6837,8 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
+  b_dnote: { name: 'Death Note (Light)', bot: true, desc: 'Once a game: tap a bot piece (not the king or queen) to write it down. Three of your moves later, it\u2019s gone.' },
+  b_whisper: { name: 'Whisper (Johan)', bot: true, desc: 'Twice a game: tap a bot piece, and it captures another of the bot\u2019s own pieces (never a king or queen).' },
   b_bomb: { name: 'Killer Queen (Kira)', bot: true, desc: 'Twice a game: tap a bot piece (not the king or queen) to turn it into a bomb. When the bot moves it, it explodes and takes the bot\u2019s pieces next to it.' },
   b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: 'Unlimited rolls, 5 moves apart: tap any of your pieces except the king and spin. It may upgrade (777 = queen), stay the same, or get worse (a pawn that wins nothing is lost). Gambling your queen can win an extra piece or lose her.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
@@ -6568,7 +6849,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_dnote: 1, b_whisper: 2, b_bomb: 2, b_roll: 9999, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -6637,7 +6918,7 @@ async function blunderTurn(myGen) {
 /* ---------------- Jotaro's time stop ---------------- */
 let timeStopped = false, tsBy = { w: 0, b: 0 }, tsLast = { w: -99, b: -99 }, tsMax = { w: 3, b: 3 };
 function resetTimeStop() {
-  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
+  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; bombBy = { w: 0, b: 0 }; dnBy = { w: 0, b: 0 }; whisperBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
   gproMax = { w: Math.random() < 0.12 ? 2 : 1, b: Math.random() < 0.12 ? 2 : 1 };
   forceBy = { w: 0, b: 0 }; illBy = { w: 0, b: 0 }; illusion = null; owenTarget = null;
   resetPower();
@@ -6904,6 +7185,7 @@ function attemptMove(from, to) {
 }
 function afterPlayerMove(mv) {
   if (illusion && mv.color !== illusion.color) { revealIllusion(mv); return; }
+  if (checkDNote(mv)) { render(); renderMoves(); renderStats(); save(); }
   if (checkBomb(mv)) { render(); renderMoves(); renderStats(); save(); if (game.game_over()) { if (game.in_checkmate()) fireworks(); endLines(); updateStatus(); renderControls(); return; } }
   if (shield && mv.from === shield.sq) shield.sq = mv.to;
   if (power && (power.type === 'double' || power.type === 'b_timestop' || power.type === 'b_project') && power.armed && !doubleSecond && !watchMode) {
@@ -7386,6 +7668,7 @@ function buildPGN() {
   const tok = k => (slots[k] === -1 ? '--' : h[slots[k]].asc
     ? (h[slots[k]].special === 'rush' ? `-- {${sideName(h[slots[k]].color)} pushes ${h[slots[k]].count || 'several'} pawns forward at once${h[slots[k]].took ? ', taking ' + h[slots[k]].took : ''}}`
       : h[slots[k]].special === 'swap' ? `-- {${sideName(h[slots[k]].color)} swaps the pieces on ${h[slots[k]].from} and ${h[slots[k]].to}}`
+      : h[slots[k]].special === 'whisper' ? `-- {${sideName(h[slots[k]].color)} whispers: the piece on ${h[slots[k]].from} takes its own ${PIECE_WORD[h[slots[k]].captured]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'roll' ? `-- {${sideName(h[slots[k]].color)} rolls the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'd4c' ? `-- {${sideName(h[slots[k]].color)} copies the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].from} onto ${h[slots[k]].to}}`
       : h[slots[k]].special === 'punch' ? `-- {${sideName(h[slots[k]].color)} punches the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}, taking half its health}`
@@ -7462,7 +7745,7 @@ function classify(h, evals, best, sacs, alt = []) {
   h.forEach((m, i) => { out.push(gradeOne(m, i)); });
   return out;
   function gradeOne(m, i) {
-    if (m.asc || m.boom) { inBook = false; return { kind: 'best', acc: 100, color: m.color }; }
+    if (m.asc || m.boom || m.dkill) { inBook = false; return { kind: 'best', acc: 100, color: m.color }; }
     const sgn = m.color === 'w' ? 1 : -1;
     const before = winChance(clampCp(sgn * evals[i])), after = winChance(clampCp(sgn * evals[i + 1]));
     const drop = before - after;
@@ -8016,6 +8299,9 @@ const Sound = {
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
       }
+      else if (kind === 'dnote') { for (let i = 0; i < 6; i++) this.knock(t + i * 0.09, 3200 + (i % 2) * 600, 0.18, 0.03); this.pad(t, 110, 0.06, 1.4); }
+      else if (kind === 'dkill') { this.tone(t, 98, 0.12, 0.9, 'sine'); this.glide(t, 400, 60, 0.9, 0.3); this.sweep(t, 2000, 200, 0.6, 0.15, 1); }
+      else if (kind === 'whisper') { this.sweep(t, 600, 2400, 1.2, 0.06, 0.6); this.sweep(t + 0.3, 2400, 500, 1.0, 0.05, 0.6); this.pad(t, 233, 0.03, 1.4); }
       else if (kind === 'kqclick') { this.knock(t, 2600, 0.35, 0.03); this.tone(t + 0.02, 1760, 0.04, 0.2, 'sine'); }
       else if (kind === 'boom') { this.crunch(t, 0.35, 0.55, 6); this.knock(t, 70, 1, 0.6); this.sweep(t, 3000, 120, 0.7, 0.4, 0.8); this.glide(t + 0.05, 160, 40, 0.8, 0.5); }
       else if (kind === 'slottick') { this.knock(t, 2400, 0.25, 0.02); }
@@ -8294,6 +8580,7 @@ function render(animateMv) {
   const chk = g.in_check() ? kingSquare(g.turn(), g) : null;
   const hurt = live ? [hurtSquare('w'), hurtSquare('b'), ...shotHurt('w'), ...shotHurt('b')] : [];
   const bombNow = live ? bombState() : null;
+  const dnNow = live ? dnoteState() : null;
   const ptg = new Set(live && (TARGETED.has(powerPick) || powerPick === 'b_forceline') ? powerTargets(powerPick) : []);
   let html = '';
   rIdx.forEach((r, ri) => fIdx.forEach((f, fi) => {
@@ -8314,7 +8601,7 @@ function render(animateMv) {
     html += `<button type="button" class="${cls.join(' ')}" data-sq="${sq}" aria-label="${label}">` +
       (fi === 7 ? `<span class="coord rk">${r}</span>` : '') +
       (ri === 7 ? `<span class="coord fl">${files[f]}</span>` : '') +
-      (p ? pieceHTML(p) : '') + (p && hurt.includes(sq) ? '<span class="hp" title="Half health"><i></i></span>' : '') + (lastMark && last.to === sq ? markIcon(lastMark.kind, 'mk-sq') : '') + `</button>`;
+      (p ? pieceHTML(p) : '') + (p && hurt.includes(sq) ? '<span class="hp" title="Half health"><i></i></span>' : '') + (p && dnNow && dnNow.sq === sq ? `<span class="dnmark" title="Written in the Death Note">${Math.max(1, 3 - dnNow.cnt)}</span>` : '') + (lastMark && last.to === sq ? markIcon(lastMark.kind, 'mk-sq') : '') + `</button>`;
   }));
   boardEl.innerHTML = html;
   evalBar.classList.toggle('top', orient === 'b');
@@ -8824,7 +9111,7 @@ function snapshotState() {
   return {
     v: 2, log: moveLog.map(m => ({ from: m.from, to: m.to, promotion: m.promotion, san: m.san, color: m.color, piece: m.piece,
       captured: m.captured, flags: m.flags, fen: m.fen, ts: m.ts || undefined, reset: m.reset || undefined, asc: m.asc || undefined,
-      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined, hits: m.hits || undefined, bomb: m.bomb || undefined, boom: m.boom || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
+      special: m.special || undefined, verb: m.verb || undefined, count: m.count || undefined, took: m.took || undefined, forced: m.forced || undefined, illusion: m.illusion || undefined, veil: m.veil || undefined, hits: m.hits || undefined, bomb: m.bomb || undefined, boom: m.boom || undefined, dnote: m.dnote || undefined, dkill: m.dkill || undefined })), playerColor, sideChoice, flipped, resigned, botId, nextBotId, levelIdxBy: { ...levelIdxBy }, abilitiesOn: { ...abilitiesOn }, powerChoice, watchMode, watchFast, sideBot: { ...sideBot }, sideLevel: { ...sideLevel }, tcChoice, flagged, soundOn, boardTheme, soundPack, pieceSet, showCoords, showDots, showLast,
     clock: clock ? { base: clock.base, inc: clock.inc, w: clockLeft('w'), b: clockLeft('b'), running: clock.turnStart != null } : null,
     prevBotScore, lastEvalWhite, lastDepth, announced: { ...announced }
   };
@@ -8853,7 +9140,7 @@ function restore(data) {
     }
   } else return false;
   resetTimeStop();
-  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
+  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.bomb) bombBy[m.color] = (bombBy[m.color] || 0) + 1; if (m.dnote) dnBy[m.color] = (dnBy[m.color] || 0) + 1; if (m.special === 'whisper') whisperBy[m.color] = (whisperBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
   playerColor = s.playerColor === 'b' ? 'b' : 'w';
   botColor = other(playerColor);
   sideChoice = ['w', 'b', 'r'].includes(s.sideChoice) ? s.sideChoice : playerColor;
