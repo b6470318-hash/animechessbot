@@ -533,6 +533,38 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   animation:projghost 1.2s ease-out forwards}
 .projghost .pc{opacity:.75}
 @keyframes projghost{0%{opacity:0}15%{opacity:var(--o)}100%{opacity:0}}
+.slot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;pointer-events:none;
+  background:linear-gradient(#2a1d0c,#140d05);border:3px solid #e2b33c;border-radius:16px;padding:12px 14px 8px;
+  box-shadow:0 12px 30px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.06);display:grid;gap:6px;justify-items:center;
+  animation:slotIn .25s ease-out;transition:opacity .3s, transform .3s}
+.slot.out{opacity:0;transform:translate(-50%,-50%) scale(.9)}
+.slot-reels{display:flex;gap:8px}
+.slot .reel{width:clamp(44px,13vw,64px);height:clamp(54px,16vw,78px);border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(#fffaf0,#efe2c2);color:#2a1a06;font:800 clamp(28px,9vw,46px)/1 Georgia,serif;
+  box-shadow:inset 0 6px 8px rgba(0,0,0,.25), inset 0 -6px 8px rgba(0,0,0,.18)}
+.slot .reel.stop{animation:reelStop .18s ease-out}
+.slot-label{margin:0;white-space:nowrap;font:700 .95rem/1.2 var(--f-display);letter-spacing:.06em;color:#f6e7b8;text-transform:uppercase}
+.slot.t-none{filter:saturate(.6)}
+.slot.t-down{border-color:#e04848}.slot.t-down .slot-label{color:#ff9a9a}.slot.t-down .reel{color:#b31d1d}
+.slot.t-minor{box-shadow:0 0 22px 4px rgba(127,224,138,.55), 0 12px 30px rgba(0,0,0,.55)}.slot.t-minor .slot-label{color:#a8f0b0}
+.slot.t-rook{border-color:#7fb4ff;box-shadow:0 0 34px 8px rgba(110,170,255,.65), 0 12px 30px rgba(0,0,0,.55);animation:slotPulse .5s ease-in-out 3}
+.slot.t-rook .slot-label{color:#bcd7ff}.slot.t-rook .reel{color:#1d4fa8}
+.slot.t-queen{border-color:#ffd84a;box-shadow:0 0 50px 16px rgba(255,210,60,.8), 0 0 120px 30px rgba(255,140,40,.45);animation:slotPulse .35s ease-in-out 6}
+.slot.t-queen .reel{background:linear-gradient(#fff6c8,#ffd24a);color:#b31d1d;text-shadow:0 2px 0 #fff}
+.slot.t-queen .slot-label{color:#fff3b0;font-size:1.15rem}
+@keyframes slotIn{from{opacity:0;transform:translate(-50%,-50%) scale(.85)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes reelStop{0%{transform:translateY(-10%)}60%{transform:translateY(6%)}100%{transform:none}}
+@keyframes slotPulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.06)}}
+.jackpot{position:absolute;left:50%;top:18%;transform:translateX(-50%);z-index:13;pointer-events:none;white-space:nowrap;
+  font:900 clamp(34px,11vw,72px)/1 var(--f-display);letter-spacing:.08em;color:#ffe066;
+  text-shadow:0 3px 0 #b31d1d, 0 0 18px rgba(255,200,40,.9), 0 0 40px rgba(255,120,40,.7);animation:jackpot 2.6s ease-out forwards}
+@keyframes jackpot{0%{opacity:0;transform:translateX(-50%) scale(.3) rotate(-8deg)}15%{opacity:1;transform:translateX(-50%) scale(1.25) rotate(3deg)}
+  30%{transform:translateX(-50%) scale(1) rotate(0)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) scale(1.1)}}
+.board.jackflash{animation:jackflash 2.4s ease-out}
+@keyframes jackflash{0%,100%{filter:none}10%,30%,50%{filter:brightness(1.5) sepia(.6) saturate(2.5) hue-rotate(-10deg)}20%,40%{filter:brightness(1.1)}}
+.rollfx{border-radius:12%;box-shadow:inset 0 0 0 3px #e2b33c, 0 0 14px rgba(226,179,60,.8);animation:rollfx 1.4s ease-in-out 2}
+@keyframes rollfx{0%,100%{opacity:.4}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.slot,.slot .reel.stop,.slot.t-rook,.slot.t-queen,.jackpot,.board.jackflash{animation:none}}
 .shotline{position:absolute;z-index:7;pointer-events:none;transform-origin:0 50%;height:3px;margin-top:-1.5px;border-radius:999px;
   background:linear-gradient(90deg, rgba(226,179,60,0), rgba(255,230,150,.95) 70%, #fff);box-shadow:0 0 8px rgba(226,179,60,.8);animation:shotline .8s ease-out forwards}
 @keyframes shotline{0%{opacity:0;clip-path:inset(0 100% 0 0)}25%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
@@ -1195,6 +1227,18 @@ BOTS.mista = {
     '--muted': '#b2a98f', '--gold': '#e2b33c', '--gold-ink': '#211703', '--graph-bg': '#17130d' },
   card: { bg: '#17130d', rule: '#35301f', text: '#f6f1e4', muted: '#b2a98f', accent: '#e2b33c', ink: '#211703' }
 };
+BOTS.hakari = {
+  name: 'Hakari', crest: '\u265B', statLabel: 'Captures', quiet: false, style: 'plain', ability: 'gamble',
+  tag: 'A gambler who lives for the jackpot. Three times a game he rolls one of his pieces: it might upgrade (even to a queen on a 777), stay the same, or get worse.',
+  // Stockfish skill 1 is about 1490; his rolls can win or lose material.
+  levels: [
+    { elo: 1500, skill: 1, depth: 8, time: 1200 }
+  ],
+  crestPiece: 'bq',
+  palette: { '--ink': '#0c0f0b', '--glow': '#161d14', '--panel': '#12170f', '--rule': '#2b3624', '--text': '#f2f6ec',
+    '--muted': '#a6b09a', '--gold': '#7fe08a', '--gold-ink': '#06200b', '--graph-bg': '#12170f' },
+  card: { bg: '#12170f', rule: '#2b3624', text: '#f2f6ec', muted: '#a6b09a', accent: '#7fe08a', ink: '#06200b' }
+};
 let botId = 'lelouch', nextBotId = 'lelouch';
 // Bot vs bot: which bot and level plays each color, and whether they play at human pace.
 let watchMode = false, watchFast = false;
@@ -1202,7 +1246,7 @@ let sideBot = { w: 'lelouch', b: 'ayanokoji' }, sideLevel = { w: 0, b: 0 };
 let prevBy = { w: null, b: null }, annBy = { w: {}, b: {} };
 const levelIdxBy = { lelouch: 0, ayanokoji: 0 };
 // Special powers can be switched off per bot from its card on the Opponents screen.
-const ABILITY_NAMES = { mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
+const ABILITY_NAMES = { hakari: 'Idle Gamble', mista: 'Sex Pistols', valentine: 'D4C', naoya: 'Projection Sorcery', yuta: 'Veil', owen: 'Pawn Rush', colton: 'Boxing', guts: 'Sword slice', griffith: 'Promotion', lelouch: 'Geass', ayanokoji: 'Manipulation', okuyasu: 'The Hand', malik: 'Aura', joseph: 'Your next line is', aizen: 'Kyoka Suigetsu', jotaro: 'Time stop', jesus: 'Ascension', goku: 'Kamehameha', gojo: 'Hollow Purple', sukuna: 'Malevolent Shrine' };
 const abilitiesOn = {};
 const abilityOn = () => abilitiesOn[botId] !== false;
 const BOT = () => BOTS[botId];
@@ -3508,6 +3552,50 @@ const LINES_MISTA = {
   noFour: ["Three shots. I'm NOT firing a fourth."]
 };
 BOTS.mista.lines = LINES_MISTA;
+const LINES_HAKARI = {
+  greetWhite: ["I'll go first. Feeling lucky today.", "Let's roll. Literally."],
+  greetBlack: ["You go first. I'll match your bet.", "Your move. Place your chips."],
+  restore: ["Back at the table? Good. The odds are still on."],
+  kingMarch: ["My king likes to gamble too."],
+  kingActive: ["Big risks, big rewards."],
+  check: ["Check. Call or fold?", "Check! The table's heating up."],
+  capture: ["House takes that one.", "Payout!", "Mine."],
+  blunder: ["You bet that piece and lost it.", "Bad hand. I'll take it."],
+  strong: ["Nice move. You know how to play the odds.", "Okay, that was a strong bet."],
+  winning: ["I'm on a hot streak."],
+  losing: ["A cold streak never lasts. Watch.", "I'm not cashing out yet."],
+  mate: [n => `Mate in ${n}. The house always wins.`],
+  playerCheck: ["Check? Bold bet.", "Heh, you're raising the stakes."],
+  ambient: ["Feel that? A winning streak's coming.", "The thrill is the whole point.", "Every move's a bet.", "Odds are, I'm about to get lucky."],
+  botWins: ["Checkmate. Jackpot.", "The house wins. GG."],
+  playerWins: ["You beat the house. Respect.", "Checkmate. Lady Luck switched sides."],
+  draw: ["A draw. Everyone keeps their chips."],
+  resign: ["Folding? Smart, maybe."],
+  undo: ["No refunds at this table.", "A bet's a bet. No take-backs."],
+  playerFlag: ["Out of time. The dealer doesn't wait."],
+  botFlag: ["My clock ran out? That's a bad beat."],
+  botPromote: ["A queen. Now that's a payout."],
+  playerPromote: ["A new queen? Lucky draw."],
+  queenTaken: ["Your queen. Biggest chip on the table."],
+  queenLost: ["My queen... that's a big loss."],
+  queenBlunder: ["...Bad bet. I'll win it back."],
+  playerCastle: ["Playing it safe? Boring."],
+  playerKing: ["Your king's gambling too? Respect."],
+  sacrifice: ["All in. Take it if you dare.", "Big bets only."],
+  endgame: ["Final hand. Let's see it."],
+  longGame: ["Long session. I'm still at the table."],
+  hint: ["A tip from the dealer."],
+  reviewClean: ["No blunders. You play the odds well."],
+  reviewMessy: [n => `${n} blunder${n > 1 ? 's' : ''}. Bad bets.`],
+  // Idle Gamble: three times a game he rolls one of his pieces.
+  roll: ["Let's roll the dice on this one.", "Spin it! Come on, come on..."],
+  rollNone: ["Nothing. Again. Next one hits.", "A miss. That's gambling."],
+  rollDown: ["Ugh, it went down. That's the risk.", "Bad roll. Doesn't matter."],
+  rollMinor: ["Small win. I'll take it.", "A little payout."],
+  rollRook: ["Now we're talking! A rook!", "Big win! Rook!"],
+  rollQueen: ["777! JACKPOT! A QUEEN!", "JACKPOT! Now I'm unstoppable!"]
+};
+BOTS.hakari.lines = LINES_HAKARI;
 BOTS.yuta.lines = LINES_YUTA;
 const lastPicked = {};
 function pick(cat) {
@@ -4364,6 +4452,7 @@ async function botTurn() {
   if (canGPromote()) { gpromoteTurn(myGen); return; }
   if (canD4C()) { d4cTurn(myGen); return; }
   if (canShoot()) { shotTurn(myGen); return; }
+  if (canRoll()) { rollTurn(myGen); return; }
   thinking = true;
   updateStatus(); renderControls();
   const started = Date.now();
@@ -5269,8 +5358,9 @@ function powerPickSquare(sq) {
 
 /* ---------------- Your copies of the bots' abilities ---------------- */
 // Abilities where you tap the piece it hits.
-const TARGETED = new Set(['b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
+const TARGETED = new Set(['b_roll', 'b_pistols', 'b_d4c', 'b_geass', 'b_hand', 'b_aura', 'b_purple', 'b_shrine', 'b_slash', 'b_punch', 'b_kame', 'b_ascend', 'b_manip']);
 const PICK_TEXT = {
+  b_roll: 'Tap one of your pieces to roll (not your queen or king)',
   b_pistols: 'Tap a bot piece your pieces can see to shoot',
   b_d4c: 'Tap a piece to copy (not a queen or a king)',
   b_geass: 'Tap a bot rook, bishop or knight to take control of',
@@ -5292,6 +5382,7 @@ function powerTargets(type) {
     const minors = pieces.filter(x => x.type !== 'p');
     return (minors.length ? minors : pieces).map(sq);
   }
+  if (type === 'b_roll') return rollable(c).map(x => x.sq);
   if (type === 'b_pistols') return pistolShots(c).map(x => x.sq);
   if (type === 'b_d4c') return [...new Set(d4cOptions(c).filter(o => d4cFen(c, o)).map(o => o.from))];
   if (type === 'b_hand' || type === 'b_ascend') return piecesOf(opp, pc => pc.type !== 'k').map(sq);
@@ -5348,6 +5439,19 @@ async function castPlayer(type, pick, pick2) {
   const L = t => (t === 'p' ? '' : t.toUpperCase());
   const busy = () => { thinking = true; updateStatus(); renderControls(); };
   const done = () => { thinking = false; };
+  if (type === 'b_roll') {
+    const pc = game.get(pick);
+    if (!pc || pc.color !== c || !'pnbr'.includes(pc.type)) return;
+    spendPower(); busy(); squareFx(pick, 'rollfx');
+    const out = rollOutcome(pc.type, pick);
+    await slotFx(out.tier, out.to);
+    if (myGen !== gen) return; done();
+    if (out.to !== pc.type) { game.remove(pick); game.put({ type: out.to, color: c }, pick); }
+    playerFinish({ from: pick, to: pick, piece: pc.type, special: 'roll', verb: 'rolls', san: '\u2684' + L(pc.type) + pick + (out.to !== pc.type ? '=' + out.to.toUpperCase() : '') },
+      { queen: 'JACKPOT! Your piece is a queen now!', rook: `Big win! Your ${PIECE_WORD[pc.type]} is a rook now.`, minor: `Win! Your pawn is a ${PIECE_WORD[out.to]} now.`,
+        down: `Bust. Your ${PIECE_WORD[pc.type]} dropped to a ${PIECE_WORD[out.to]}.`, none: 'No win this time.' }[out.tier]);
+    return;
+  }
   if (type === 'b_pistols') {
     const s = pistolShots(c).find(x => x.sq === pick);
     if (!s) return;
@@ -6005,6 +6109,110 @@ async function shotTurn(myGen) {
   await finishSpecial(myGen, c, entry, after);
 }
 
+/* ---------------- Hakari: Idle Gamble ---------------- */
+// Three times a game, instead of a move, he rolls one of his own pawns, knights, bishops or rooks.
+// Pawn: 80% nothing, 15% bishop or knight, 5% rook.
+// Bishop/knight: 30% down to a pawn, 40% nothing, 20% rook, 10% queen.
+// Rook: 25% down to a bishop or knight, 45% nothing, 30% queen.
+let rollBy = { w: 0, b: 0 };
+const ROLL_ODDS = {
+  p: [[0.80, 'none'], [0.15, 'minor'], [0.05, 'r']],
+  n: [[0.30, 'down'], [0.40, 'none'], [0.20, 'r'], [0.10, 'q']],
+  b: [[0.30, 'down'], [0.40, 'none'], [0.20, 'r'], [0.10, 'q']],
+  r: [[0.25, 'down'], [0.45, 'none'], [0.30, 'q']]
+};
+function rollOutcome(type, sq) {
+  let x = Math.random(), res = 'none';
+  for (const [pr, r] of ROLL_ODDS[type]) { if (x < pr) { res = r; break; } x -= pr; }
+  const back = sq[1] === '1' || sq[1] === '8';
+  if (res === 'none') return { to: type, tier: 'none' };
+  if (res === 'minor') return { to: Math.random() < 0.5 ? 'n' : 'b', tier: 'minor' };
+  if (res === 'r') return { to: 'r', tier: 'rook' };
+  if (res === 'q') return { to: 'q', tier: 'queen' };
+  // Down: a rook becomes a bishop or knight; a bishop or knight becomes a pawn (pawns can't stand on the back rank, so there it's just a miss).
+  if (type === 'r') return { to: Math.random() < 0.5 ? 'n' : 'b', tier: 'down' };
+  return back ? { to: type, tier: 'none' } : { to: 'p', tier: 'down' };
+}
+const rollable = c => piecesOf(c, pc => 'pnbr'.includes(pc.type));
+function canRoll() {
+  if (BOT().ability !== 'gamble' || !abilityOn() || isOver() || game.in_check()) return false;
+  const c = botColor, n = botMoveCount();
+  if (n < 4 || (rollBy[c] || 0) >= 3 || !rollable(c).length) return false;
+  let last = -99, k = 0;
+  for (const m of moveLog) { if (m.color === c) k++; if (m.special === 'roll' && m.color === c) last = k; }
+  if (n - last < 4) return false;
+  return n >= 30 || Math.random() < 0.18;
+}
+// The slot machine. Reels spin, stop one by one, and land on symbols that match the result.
+const ROLL_GLYPH = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛' };
+function slotFx(tier, toType) {
+  return new Promise(resolve => {
+    const reelSyms = ['7', '♟', '♞', '♝', '♜', '♦', '♣', '3'];
+    let final;
+    if (tier === 'queen') final = ['7', '7', '7'];
+    else if (tier === 'rook') final = [ROLL_GLYPH.r, ROLL_GLYPH.r, ROLL_GLYPH.r];
+    else if (tier === 'minor') final = [ROLL_GLYPH[toType], ROLL_GLYPH[toType], ROLL_GLYPH[toType]];
+    else if (tier === 'down') final = ['✕', '✕', '✕'];
+    else { final = ['7', '7', '3']; if (Math.random() < 0.5) final = ['7', '♟', '7']; }
+    const box = document.createElement('div');
+    box.className = 'slot';
+    box.setAttribute('aria-hidden', 'true');
+    box.innerHTML = '<div class="slot-reels"><span class="reel"></span><span class="reel"></span><span class="reel"></span></div><p class="slot-label">Rolling…</p>';
+    wrapEl.appendChild(box);
+    const reels = [...box.querySelectorAll('.reel')];
+    const fast = reduceMotion;
+    const stopAt = fast ? [0, 0, 0] : [700, 1050, tier === 'queen' ? 1700 : 1400];
+    const t0 = Date.now();
+    const tick = setInterval(() => {
+      const el = Date.now() - t0;
+      reels.forEach((r, i) => {
+        if (el >= stopAt[i]) { if (!r.dataset.done) { r.textContent = final[i]; r.dataset.done = '1'; r.classList.add('stop'); Sound.play('slotstop'); } }
+        else r.textContent = reelSyms[Math.floor(Math.random() * reelSyms.length)];
+      });
+      if (el < stopAt[2] && el % 120 < 45) Sound.play('slottick');
+      if (reels.every(r => r.dataset.done)) {
+        clearInterval(tick);
+        box.classList.add('t-' + tier);
+        box.querySelector('.slot-label').textContent =
+          { queen: 'JACKPOT! Queen!', rook: 'Big win! Rook!', minor: `Win! ${PIECE_WORD[toType][0].toUpperCase() + PIECE_WORD[toType].slice(1)}!`, down: 'Bust! Downgrade.', none: 'No win.' }[tier];
+        Sound.play('roll_' + tier);
+        if (tier === 'queen') {
+          boardEl.classList.remove('jackflash'); void boardEl.offsetWidth; boardEl.classList.add('jackflash');
+          const banner = document.createElement('div');
+          banner.className = 'jackpot';
+          banner.textContent = 'JACKPOT';
+          wrapEl.appendChild(banner);
+          setTimeout(() => banner.remove(), 2600);
+          setTimeout(() => boardEl.classList.remove('jackflash'), 2400);
+          try { fireworks(); } catch (e) {}
+        }
+        const hold = { queen: 2400, rook: 1500, minor: 1100, down: 1000, none: 900 }[tier];
+        setTimeout(() => { box.classList.add('out'); setTimeout(() => box.remove(), 350); resolve(); }, hold);
+      }
+    }, 45);
+  });
+}
+async function rollTurn(myGen) {
+  const c = botColor, list = rollable(c);
+  if (!list.length) return;
+  // He likes rolling rooks most, then bishops and knights, then pawns.
+  const w = { r: 4, n: 2, b: 2, p: 1 }, total = list.reduce((a, x) => a + w[x.type], 0);
+  let x = Math.random() * total, pickP = list[0];
+  for (const it of list) { x -= w[it.type]; if (x <= 0) { pickP = it; break; } }
+  rollBy[c] = (rollBy[c] || 0) + 1;
+  thinking = true;
+  updateStatus(); renderControls();
+  say(pick('roll'));
+  squareFx(pickP.sq, 'rollfx');
+  const out = rollOutcome(pickP.type, pickP.sq);
+  await slotFx(out.tier, out.to);
+  if (myGen !== gen) return;
+  if (out.to !== pickP.type) { game.remove(pickP.sq); game.put({ type: out.to, color: c }, pickP.sq); }
+  const say2 = pick({ queen: 'rollQueen', rook: 'rollRook', minor: 'rollMinor', down: 'rollDown', none: 'rollNone' }[out.tier]);
+  await finishSpecial(myGen, c, { from: pickP.sq, to: pickP.sq, piece: pickP.type, special: 'roll', verb: 'rolls',
+    san: '⚄' + (pickP.type === 'p' ? '' : pickP.type.toUpperCase()) + pickP.sq + (out.to !== pickP.type ? '=' + out.to.toUpperCase() : '') }, say2);
+}
+
 /* ---------------- Owen: Pawn Rush ---------------- */
 let rushBy = { w: 0, b: 0 };
 // Steps each pawn forward one square (front pawns first). If an enemy piece is straight ahead it
@@ -6089,6 +6297,7 @@ const POWERS = {
   b_aura: { name: 'Aura (Malik)', bot: true, desc: 'Once a game: Aura takes a random bot piece that has moved (not the queen or king).' },
   b_rush: { name: 'Pawn Rush (Owen)', bot: true, desc: 'Once a game: all your pawns step forward, taking any piece straight ahead except a queen or king.' },
   b_project: { name: 'Projection Sorcery (Naoya)', bot: true, desc: '3 times a game: arm it, and you move twice in a row. Captures allowed on the second move, which leaves a pink trail.' },
+  b_roll: { name: 'Idle Gamble (Hakari)', bot: true, desc: '3 rolls a game: tap one of your pawns, knights, bishops or rooks and spin. It may upgrade (777 = queen), stay the same, or get worse.' },
   b_pistols: { name: 'Sex Pistols (Mista)', bot: true, desc: '3 shots a game: tap a bot piece one of your pieces can see (not a queen or king). A hit takes half its health, a second takes it out (pawns go in one), and the bullet may bounce into another piece.' },
   b_d4c: { name: 'D4C (Valentine)', bot: true, desc: 'Once a game: tap any piece (not a queen or a king) and a copy of it appears on your side, on an empty square within 2 squares of it (never an instant checkmate).' },
   b_punch: { name: 'Boxing (Colton)', bot: true, desc: '3 punches a game: two knock out one of the bot\u2019s bishops or knights (the first takes half its health), and the last one can only take a pawn.' },
@@ -6097,7 +6306,7 @@ const POWERS = {
   b_kame: { name: 'Kamehameha (Goku)', bot: true, desc: 'Once a game: blast the bot\u2019s most advanced pawn off the board.' },
   b_hand: { name: 'The Hand (Okuyasu)', bot: true, desc: 'Once a game: erase a random bot piece. About a third of the time you erase one of yours by mistake.' }
 };
-const POWER_USES = { b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
+const POWER_USES = { b_roll: 3, b_pistols: 3, b_d4c: 1, b_ascend: 2, b_punch: 3, b_project: 3 };
 let powerChoice = 'none';
 let power = null;              // { type, used, armed } for the current game
 let powerPick = null, swapFirst = null, doubleSecond = false, shield = null, reflectedNow = null, illusionP = null;
@@ -6166,7 +6375,7 @@ async function blunderTurn(myGen) {
 /* ---------------- Jotaro's time stop ---------------- */
 let timeStopped = false, tsBy = { w: 0, b: 0 }, tsLast = { w: -99, b: -99 }, tsMax = { w: 3, b: 3 };
 function resetTimeStop() {
-  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
+  ascBy = { w: 0, b: 0 }; ascLast = { w: -99, b: -99 }; kameBy = { w: 0, b: 0 }; purpleBy = { w: 0, b: 0 }; specialBy = { w: 0, b: 0 }; rushBy = { w: 0, b: 0 }; punchBy = { w: 0, b: 0 }; veilBy = { w: 0, b: 0 }; projecting = false; d4cBy = { w: 0, b: 0 }; shotBy = { w: 0, b: 0 }; rollBy = { w: 0, b: 0 }; slashBy = { w: 0, b: 0 }; gproBy = { w: 0, b: 0 };
   gproMax = { w: Math.random() < 0.12 ? 2 : 1, b: Math.random() < 0.12 ? 2 : 1 };
   forceBy = { w: 0, b: 0 }; illBy = { w: 0, b: 0 }; illusion = null; owenTarget = null;
   resetPower();
@@ -6913,6 +7122,7 @@ function buildPGN() {
   const tok = k => (slots[k] === -1 ? '--' : h[slots[k]].asc
     ? (h[slots[k]].special === 'rush' ? `-- {${sideName(h[slots[k]].color)} pushes ${h[slots[k]].count || 'several'} pawns forward at once${h[slots[k]].took ? ', taking ' + h[slots[k]].took : ''}}`
       : h[slots[k]].special === 'swap' ? `-- {${sideName(h[slots[k]].color)} swaps the pieces on ${h[slots[k]].from} and ${h[slots[k]].to}}`
+      : h[slots[k]].special === 'roll' ? `-- {${sideName(h[slots[k]].color)} rolls the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}}`
       : h[slots[k]].special === 'd4c' ? `-- {${sideName(h[slots[k]].color)} copies the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].from} onto ${h[slots[k]].to}}`
       : h[slots[k]].special === 'punch' ? `-- {${sideName(h[slots[k]].color)} punches the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}, taking half its health}`
       : `-- {${sideName(h[slots[k]].color)} ${h[slots[k]].verb || 'ascends'} the ${PIECE_WORD[h[slots[k]].piece]} on ${h[slots[k]].to}}`) : h[slots[k]].san);
@@ -7541,6 +7751,18 @@ const Sound = {
         this.sweep(t, 9000, 2500, 0.4, 0.45, 0.7);
         [0, 0.05, 0.11, 0.18, 0.26].forEach(d => this.tone(t + d, 2600 + Math.random() * 3200, 0.05, 0.25, 'sine'));
         this.knock(t, 900, 0.5, 0.12);
+      }
+      else if (kind === 'slottick') { this.knock(t, 2400, 0.25, 0.02); }
+      else if (kind === 'slotstop') { this.knock(t, 700, 0.6, 0.06); this.knock(t + 0.01, 1900, 0.3, 0.03); }
+      else if (kind === 'roll_none') { this.tone(t, 220, 0.07, 0.25, 'square'); this.tone(t + 0.18, 185, 0.07, 0.35, 'square'); }
+      else if (kind === 'roll_down') { [392, 330, 262, 196].forEach((f, i) => this.tone(t + i * 0.1, f, 0.07, 0.2, 'sawtooth')); }
+      else if (kind === 'roll_minor') { this.tone(t, 988, 0.08, 0.15, 'sine'); this.tone(t + 0.1, 1319, 0.08, 0.3, 'sine'); }
+      else if (kind === 'roll_rook') { [523, 659, 784, 1047].forEach((f, i) => this.tone(t + i * 0.08, f, 0.08, 0.35, 'triangle')); this.sweep(t, 800, 5000, 0.6, 0.1, 2); }
+      else if (kind === 'roll_queen') {
+        [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => this.tone(t + i * 0.07, f, 0.08, 0.5, 'square'));
+        [1047, 1319, 1568].forEach(f => this.pad(t + 0.55, f, 0.05, 1.6));
+        for (let i = 0; i < 14; i++) this.knock(t + 0.6 + i * 0.07, 3000 + (i % 4) * 400, 0.25, 0.04);
+        this.sweep(t + 0.5, 400, 7000, 1.2, 0.18, 1.5);
       }
       else if (kind === 'ricochet') { this.sweep(t, 6000, 2200, 0.25, 0.14, 6); this.tone(t, 3100, 0.05, 0.3, 'sine'); this.tone(t + 0.02, 2600, 0.03, 0.25, 'sine'); }
       else if (kind === 'gunshot') {
@@ -8363,7 +8585,7 @@ function restore(data) {
     }
   } else return false;
   resetTimeStop();
-  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
+  for (const m of moveLog) { if (m.asc && m.special === 'rush') rushBy[m.color] = (rushBy[m.color] || 0) + 1; if (m.asc && ['geass', 'hand', 'swap'].includes(m.special)) specialBy[m.color] = (specialBy[m.color] || 0) + 1; if (m.forced) forceBy[other(m.color)] = (forceBy[other(m.color)] || 0) + 1; if (m.illusion) illBy[m.color] = (illBy[m.color] || 0) + 1; if (m.ts) tsBy[m.color] = (tsBy[m.color] || 0) + 1; if (m.veil) veilBy[m.color] = (veilBy[m.color] || 0) + 1; if (m.asc && m.special === 'kame') kameBy[m.color] = (kameBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'purple' || m.special === 'shrine' || m.special === 'aura')) purpleBy[m.color] = (purpleBy[m.color] || 0) + 1; else if (m.asc && (m.special === 'punch' || m.special === 'ko')) punchBy[m.color] = (punchBy[m.color] || 0) + 1; else if (m.asc && m.special === 'd4c') d4cBy[m.color] = (d4cBy[m.color] || 0) + 1; else if (m.asc && m.special === 'shot') shotBy[m.color] = (shotBy[m.color] || 0) + 1; else if (m.asc && m.special === 'roll') rollBy[m.color] = (rollBy[m.color] || 0) + 1; else if (m.asc && m.special === 'slash') slashBy[m.color] = (slashBy[m.color] || 0) + 1; else if (m.asc && m.special === 'gpromote') { gproBy[m.color] = (gproBy[m.color] || 0) + 1; gproMax[m.color] = Math.max(gproMax[m.color] || 1, gproBy[m.color]); } else if (m.asc) ascBy[m.color] = (ascBy[m.color] || 0) + 1; }
   playerColor = s.playerColor === 'b' ? 'b' : 'w';
   botColor = other(playerColor);
   sideChoice = ['w', 'b', 'r'].includes(s.sideChoice) ? s.sideChoice : playerColor;
